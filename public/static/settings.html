@@ -1,0 +1,84 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <title>B24 Tabs — Настройки</title>
+  <link rel="stylesheet" href="/static/style.css" />
+</head>
+<body>
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar__header">
+      <div class="brand">
+        <div class="brand__dot"></div>
+        <div>
+          <div class="brand__title">Consult-Info</div>
+          <div class="brand__subtitle">Витрина вкладок для CRM</div>
+        </div>
+      </div>
+    </div>
+    <div id="entities" class="entity-list"></div>
+  </aside>
+
+  <main class="main">
+    <div class="main__header">
+      <h3 id="entityTitle">—</h3>
+    </div>
+
+    <div class="tabs-strip">
+      <div id="tabs" class="tabs"></div>
+      <button id="btnAddTab" class="btn btn--ghost">+ Добавить</button>
+    </div>
+
+    <div class="editor">
+      <input id="linkInput" class="input" placeholder="https://..." />
+      <div id="previewBox" class="preview"></div>
+      <button id="btnSave" type="button" class="btn btn--primary">Сохранить</button>
+      <button id="btnDelete" type="button" class="btn btn--danger">Удалить</button>
+      <div id="status"></div>
+      <div class="preview-note" id="previewNote">
+        Некоторые сайты могут блокировать просмотр внутри приложения (по настройкам безопасности).
+        Если вы видите пустой экран — откройте ссылку в новой вкладке.
+      </div>
+    </div>
+  </main>
+</div>
+<script>
+  (function () {
+    const params = new URLSearchParams(location.search);
+    const portalFromQuery = params.get("portal_id");
+
+    window.APP_CONTEXT = window.APP_CONTEXT || {};
+    window.APP_CONTEXT.mode = window.APP_CONTEXT.mode || "settings";
+
+    function setPortalId(id) {
+      window.APP_CONTEXT.portalId = id || "LOCAL";
+      console.log("APP_CONTEXT.portalId =", window.APP_CONTEXT.portalId);
+    }
+
+    // 1) Если мы внутри Bitrix24 iframe и BX24 доступен — берём member_id
+    try {
+      if (window.BX24 && typeof window.BX24.getAuth === "function") {
+        window.BX24.init(function () {
+          window.BX24.getAuth(function (auth) {
+            // auth.member_id — главный идентификатор портала
+            const mid = auth && auth.member_id;
+            if (mid) return setPortalId(mid);
+
+            // если вдруг member_id не пришёл — fallback
+            setPortalId(portalFromQuery || "LOCAL");
+          });
+        });
+        return; // важно: не делаем fallback раньше времени
+      }
+    } catch (e) {
+      // молча падаем в fallback
+    }
+
+    // 2) Локальный режим (вне Bitrix): ?portal_id=... или LOCAL
+    setPortalId(portalFromQuery || "LOCAL");
+  })();
+</script>
+<script src="/static/app.js"></script>
+</body>
+</html>
