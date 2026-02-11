@@ -1,3 +1,4 @@
+console.log("VERSION CHECK 11.02.2026 19:47");
 const ctx = window.APP_CONTEXT || { mode: "settings", portalId: "LOCAL" };
 
 let state = {
