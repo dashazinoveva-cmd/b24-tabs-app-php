@@ -1,8 +1,7 @@
-console.log("VERSION CHECK 11.02.2026 19:47");
-const ctx = window.APP_CONTEXT || { mode: "settings", portalId: "LOCAL" };
+const ctx = window.APP_CONTEXT || { mode: "settings"};
 
 let state = {
-  portalId: ctx.portalId || "LOCAL",
+  portalId: null,
   entityTypeId: ctx.entityTypeId || null,
   entities: [],
   tabs: [],
@@ -37,8 +36,14 @@ let autosaveTimer = null;
 let lastSavedValue = null;
 
 function withPortal(url) {
-  const p = encodeURIComponent(ctx.portalId || "LOCAL");
-  return url.includes("?") ? `${url}&portal_id=${p}` : `${url}?portal_id=${p}`;
+  if (!state.portalId) {
+    console.error("portalId not initialized");
+    return url;
+  }
+  const p = encodeURIComponent(state.portalId);
+  return url.includes("?")
+    ? `${url}&portal_id=${p}`
+    : `${url}?portal_id=${p}`;
 }
 
 async function api(url, options = {}) {
@@ -633,7 +638,15 @@ if (btnDelete) {
 }
 
 // ---------- init ----------
-(async function init() {
+BX24.init(async function () {
+  console.log("BX24 INIT OK");
+
+  const auth = BX24.getAuth();
+  console.log("AUTH:", auth);
+
+  state.portalId = auth.domain;
+  ctx.portalId = auth.domain;
+
   try {
     if (ctx.mode === "settings") {
       await loadEntities();
@@ -645,4 +658,4 @@ if (btnDelete) {
     console.error(e);
     if (elStatus) elStatus.textContent = "Ошибка загрузки";
   }
-})();
+});

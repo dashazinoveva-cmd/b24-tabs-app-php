@@ -16,42 +16,6 @@
       <div id="status" class="small"></div>
     </div>
   </div>
-
-<script>
-  (function () {
-    const params = new URLSearchParams(location.search);
-    const portalFromQuery = params.get("portal_id");
-    const entity = params.get("entity") || "deal";
-
-    window.APP_CONTEXT = window.APP_CONTEXT || {};
-    window.APP_CONTEXT.mode = window.APP_CONTEXT.mode || "crm";
-    window.APP_CONTEXT.entityTypeId = entity;
-
-    function setPortalId(id) {
-      window.APP_CONTEXT.portalId = id || "LOCAL";
-      console.log("APP_CONTEXT (crm) portalId =", window.APP_CONTEXT.portalId, "entityTypeId =", entity);
-    }
-
-    // 1) Если открыто внутри Bitrix24 iframe — берём member_id из BX24.getAuth()
-    try {
-      if (window.BX24 && typeof window.BX24.getAuth === "function") {
-        window.BX24.init(function () {
-          window.BX24.getAuth(function (auth) {
-            const mid = auth && auth.member_id;
-            if (mid) return setPortalId(mid);
-            setPortalId(portalFromQuery || "LOCAL");
-          });
-        });
-        return; // не делаем fallback раньше времени
-      }
-    } catch (e) {
-      // ignore -> fallback ниже
-    }
-
-    // 2) Локально (вне Bitrix): ?portal_id=... или LOCAL
-    setPortalId(portalFromQuery || "LOCAL");
-  })();
-</script>
 <script src="/static/app.js"></script>
 </body>
 </html>

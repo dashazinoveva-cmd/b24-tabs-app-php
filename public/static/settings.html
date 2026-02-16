@@ -44,42 +44,6 @@
     </div>
   </main>
 </div>
-<script>
-  (function () {
-    const params = new URLSearchParams(location.search);
-    const portalFromQuery = params.get("portal_id");
-
-    window.APP_CONTEXT = window.APP_CONTEXT || {};
-    window.APP_CONTEXT.mode = window.APP_CONTEXT.mode || "settings";
-
-    function setPortalId(id) {
-      window.APP_CONTEXT.portalId = id || "LOCAL";
-      console.log("APP_CONTEXT.portalId =", window.APP_CONTEXT.portalId);
-    }
-
-    // 1) Если мы внутри Bitrix24 iframe и BX24 доступен — берём member_id
-    try {
-      if (window.BX24 && typeof window.BX24.getAuth === "function") {
-        window.BX24.init(function () {
-          window.BX24.getAuth(function (auth) {
-            // auth.member_id — главный идентификатор портала
-            const mid = auth && auth.member_id;
-            if (mid) return setPortalId(mid);
-
-            // если вдруг member_id не пришёл — fallback
-            setPortalId(portalFromQuery || "LOCAL");
-          });
-        });
-        return; // важно: не делаем fallback раньше времени
-      }
-    } catch (e) {
-      // молча падаем в fallback
-    }
-
-    // 2) Локальный режим (вне Bitrix): ?portal_id=... или LOCAL
-    setPortalId(portalFromQuery || "LOCAL");
-  })();
-</script>
 <script src="/static/app.js"></script>
 </body>
 </html>
