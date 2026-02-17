@@ -108,6 +108,30 @@ if ($uri === '/api/debug/portal') {
     echo json_encode(["found" => (bool)$row, "row" => $row], JSON_UNESCAPED_UNICODE);
     exit;
 }
+if ($uri === '/api/debug/b24') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    $portalId = $_GET['portal_id'] ?? '';
+    require_once __DIR__ . '/../src/services/PortalRepository.php';
+    require_once __DIR__ . '/../src/services/BitrixApi.php';
+
+    $portal = PortalRepository::findByMemberId($portalId);
+    if (!$portal) {
+        http_response_code(404);
+        echo json_encode(['error' => 'portal not found'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    try {
+        // самый простой метод — получение текущего пользователя
+        $data = BitrixApi::call($portal, 'user.current', []);
+        echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
 // default
 http_response_code(404);
 header('Content-Type: text/plain; charset=utf-8');
