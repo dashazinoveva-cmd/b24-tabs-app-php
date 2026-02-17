@@ -35,9 +35,8 @@ const elStatus = document.getElementById("status");
 let autosaveTimer = null;
 let lastSavedValue = null;
 
-function withPortal(url) {
-  const p = encodeURIComponent(getPortalId());
-  return url.includes("?") ? `${url}&portal_id=${p}` : `${url}?portal_id=${p}`;
+function getPortalId() {
+  return state.portalId || (window.APP_CONTEXT && window.APP_CONTEXT.portalId) || "LOCAL";
 }
 
 function withPortal(url) {
@@ -636,15 +635,12 @@ if (btnDelete) {
   };
 }
 
-// ---------- init ----------
-(async function init() {
-  // если BX24 не доступен — работаем локально
-  if (typeof BX24 === "undefined") {
-    console.warn("BX24 is undefined -> fallback to LOCAL");
-    state.portalId = (window.APP_CONTEXT && window.APP_CONTEXT.portalId) || "LOCAL";
+function startApp() {
+  return (async () => {
     try {
-      if (ctx.mode === "settings") await loadEntities();
-      else {
+      if (ctx.mode === "settings") {
+        await loadEntities();
+      } else {
         state.entityTypeId = ctx.entityTypeId || "deal";
         await loadTabs();
       }
@@ -652,31 +648,17 @@ if (btnDelete) {
       console.error(e);
       if (elStatus) elStatus.textContent = "Ошибка загрузки";
     }
-    return;
-  }
+  })();
+}
 
-  BX24.init(async function () {
-    const auth = BX24.getAuth();
-    console.log("BX24 AUTH =", auth);
+BX24.init(function () {
+  const auth = BX24.getAuth && BX24.getAuth();
+  const portalId = auth && auth.member_id ? auth.member_id : null;
 
-    // ВАЖНО: для твоего backend portal_id должен быть member_id
-    const portalId = auth && auth.member_id ? auth.member_id : "LOCAL";
+  state.portalId = portalId || "LOCAL";
+  window.APP_CONTEXT = window.APP_CONTEXT || {};
+  window.APP_CONTEXT.portalId = state.portalId;
 
-    state.portalId = portalId;
-    window.APP_CONTEXT = window.APP_CONTEXT || {};
-    window.APP_CONTEXT.portalId = portalId;
-
-    console.log("PORTAL_ID SET =", portalId);
-
-    try {
-      if (ctx.mode === "settings") await loadEntities();
-      else {
-        state.entityTypeId = ctx.entityTypeId || "deal";
-        await loadTabs();
-      }
-    } catch (e) {
-      console.error(e);
-      if (elStatus) elStatus.textContent = "Ошибка загрузки";
-    }
-  });
-})();
+  console.log("PORTAL_ID SET =", state.portalId);
+  startApp();
+});
