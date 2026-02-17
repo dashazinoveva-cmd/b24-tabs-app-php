@@ -132,6 +132,30 @@ if ($uri === '/api/debug/b24') {
     }
     exit;
 }
+// api/portal/sync  (прилетает из фронта, чтобы дописать domain/client_endpoint)
+if ($uri === '/api/portal/sync') {
+    header('Content-Type: application/json; charset=utf-8');
+
+    if ($method !== 'POST') {
+        http_response_code(405);
+        echo json_encode(['error' => 'Method not allowed'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    $raw = file_get_contents('php://input') ?: '';
+    $data = json_decode($raw, true);
+    if (!is_array($data)) $data = [];
+
+    try {
+        PortalService::upsertPortal($data);
+        http_response_code(200);
+        echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+    } catch (Throwable $e) {
+        http_response_code(500);
+        echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+    }
+    exit;
+}
 // default
 http_response_code(404);
 header('Content-Type: text/plain; charset=utf-8');

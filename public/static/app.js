@@ -651,7 +651,7 @@ function startApp() {
   })();
 }
 
-BX24.init(function () {
+BX24.init(async function () {
   const auth = BX24.getAuth && BX24.getAuth();
   const portalId = auth && auth.member_id ? auth.member_id : null;
 
@@ -660,5 +660,31 @@ BX24.init(function () {
   window.APP_CONTEXT.portalId = state.portalId;
 
   console.log("PORTAL_ID SET =", state.portalId);
+
+  // 🔥 ВАЖНО: синхронизируем портал в БД
+  try {
+    if (auth) {
+      const response = await fetch("/api/portal/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          member_id: auth.member_id,
+          domain: auth.domain,
+          access_token: auth.access_token,
+          refresh_token: auth.refresh_token,
+          client_endpoint: auth.domain
+            ? `https://${auth.domain}/rest/`
+            : null,
+          server_endpoint: null
+        })
+      });
+
+      const data = await response.json();
+      console.log("PORTAL SYNC RESULT:", data);
+    }
+  } catch (e) {
+    console.warn("portal sync failed", e);
+  }
+
   startApp();
 });
