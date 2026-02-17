@@ -54,25 +54,21 @@ if ($uri === '/api/entities') {
 
     try {
         $entities = EntitiesService::getEntities($portalId);
-
         echo json_encode([
             "portal_id" => $portalId,
             "entities" => $entities,
             "source" => "bitrix"
         ], JSON_UNESCAPED_UNICODE);
-
     } catch (Throwable $e) {
-
         Logger::log("entities error", [
             "portal_id" => $portalId,
             "error" => $e->getMessage()
         ]);
 
         http_response_code(500);
-
         echo json_encode([
             "portal_id" => $portalId,
-            "error" => $e->getMessage()
+            "error" => $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }
 
@@ -96,6 +92,20 @@ if ($uri === '/api/debug/log') {
     $tail = array_slice($lines ?: [], -200);
 
     echo implode("\n", $tail);
+    exit;
+}
+if ($uri === '/api/debug/portal') {
+    header('Content-Type: application/json; charset=utf-8');
+    $memberId = $_GET['member_id'] ?? '';
+    $row = PortalRepository::findByMemberId($memberId);
+
+    if ($row) {
+        // маскируем токены
+        $row['access_token']  = $row['access_token'] ? '***' : null;
+        $row['refresh_token'] = $row['refresh_token'] ? '***' : null;
+    }
+
+    echo json_encode(["found" => (bool)$row, "row" => $row], JSON_UNESCAPED_UNICODE);
     exit;
 }
 // default
