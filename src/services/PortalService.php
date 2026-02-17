@@ -10,20 +10,8 @@ class PortalService
 
         $memberId = (string)($payload['member_id'] ?? '');
 
-        $serverEndpoint = (string)($payload['SERVER_ENDPOINT'] ?? '');
-        $domain = '';
-
-        if ($serverEndpoint) {
-            $parsed = parse_url($serverEndpoint);
-            $domain = $parsed['host'] ?? '';
-        }
-
-        if ($memberId === '' || $domain === '') {
-            throw new RuntimeException("member_id/domain missing");
-        }
-
-        if ($memberId === '' || $domain === '') {
-            throw new RuntimeException("member_id/domain missing");
+        if ($memberId === '') {
+            throw new RuntimeException("member_id missing");
         }
 
         $stmt = $pdo->prepare("
@@ -48,17 +36,19 @@ class PortalService
 
         $stmt->execute([
             ':member_id' => $memberId,
-            ':domain' => $domain,
 
-            // Bitrix поля
+            // domain временно = member_id
+            ':domain' => $memberId,
+
+            // правильные поля Bitrix
             ':access_token' => $payload['AUTH_ID'] ?? null,
             ':refresh_token' => $payload['REFRESH_ID'] ?? null,
 
             ':application_token' => null,
             ':scope' => null,
             ':user_id' => null,
-
             ':client_endpoint' => null,
+
             ':server_endpoint' => $payload['SERVER_ENDPOINT'] ?? null,
         ]);
     }
