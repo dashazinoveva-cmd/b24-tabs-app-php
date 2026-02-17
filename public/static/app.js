@@ -685,6 +685,27 @@ BX24.init(async function () {
   } catch (e) {
     console.warn("portal sync failed", e);
   }
+    // ✅ дописываем домен портала и client_endpoint в БД
+  try {
+    const domain = auth?.domain || auth?.DOMAIN || ""; // Bitrix часто даёт auth.domain
+    const clientEndpoint = domain ? `https://${domain}/rest/` : "";
 
+    if (domain) {
+      await fetch("/api/portal/sync?portal_id=" + encodeURIComponent(state.portalId), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          member_id: state.portalId,
+          domain: domain,
+          client_endpoint: clientEndpoint
+        })
+      });
+      console.log("PORTAL SYNC OK:", domain);
+    } else {
+      console.warn("PORTAL SYNC SKIPPED: auth.domain is empty", auth);
+    }
+  } catch (e) {
+    console.warn("PORTAL SYNC ERROR", e);
+  }
   startApp();
 });
