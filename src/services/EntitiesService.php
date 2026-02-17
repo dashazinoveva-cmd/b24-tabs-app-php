@@ -1,124 +1,38 @@
 <?php
 
-require_once __DIR__ . '/PortalRepository.php'; // если нет — см. ниже
-require_once __DIR__ . '/Logger.php';
+require_once __DIR__ . '/../db/Db.php';
 
 class EntitiesService
 {
-    /**
-     * Главный метод: вернёт сущности портала через REST.
-     * Если REST не сработал — вернёт базовый список без смартов.
-     */
     public static function getEntities(string $portalId): array
     {
-        $portal = self::getPortalRow($portalId);
-        if (!$portal) {
-            return self::getBaseEntities("no_portal");
-        }
-
-        $domain = $portal['domain'] ?? null;
-        $accessToken = $portal['access_token'] ?? null;
-
-        if (!$domain || !$accessToken) {
-            return self::getBaseEntities("missing_domain_or_token");
-        }
-
-        // 1) базовые сущности CRM (есть всегда)
-        $entities = [
-            ["id" => "deal",    "name" => "Сделки"],
-            ["id" => "lead",    "name" => "Лиды"],
-            ["id" => "contact", "name" => "Контакты"],
-            ["id" => "company", "name" => "Компании"],
-        ];
-
-        // 2) смарт-процессы: crm.type.list
-        try {
-            $resp = self::b24Call($domain, $accessToken, 'crm.type.list', [
-                'order' => ['id' => 'ASC'],
-                'filter' => ['isDynamic' => 'Y'],
-            ]);
-
-            $result = $resp['result']['types'] ?? $resp['result'] ?? null;
-
-            if (is_array($result)) {
-                foreach ($result as $t) {
-                    $id = $t['id'] ?? null;
-                    $title = $t['title'] ?? null;
-                    $isDynamic = $t['isDynamic'] ?? null;
-
-                    if (!$id || !$title) continue;
-                    // на всякий случай фильтр
-                    if ($isDynamic !== null && (string)$isDynamic !== 'Y') continue;
-
-                    // ✅ ключ: "sp_{$id}" как у тебя в фронте
-                    $entities[] = ["id" => "sp_" . $id, "name" => "Смарт-процесс: " . $title];
-                }
-            }
-
-            return $entities;
-        } catch (Throwable $e) {
-            Logger::log("EntitiesService REST error", [
-                "portal_id" => $portalId,
-                "error" => $e->getMessage(),
-            ]);
-            return self::getBaseEntities("rest_error");
-        }
-    }
-
-    /**
-     * Используется твоим index.php сейчас. Оставим, но лучше перейти на getEntities()
-     */
-    public static function getMockEntities(): array
-    {
-        return [
-            ["id" => "deal",    "name" => "Сделки"],
-            ["id" => "lead",    "name" => "Лиды"],
-            ["id" => "contact", "name" => "Контакты"],
-            ["id" => "company", "name" => "Компании"],
-            ["id" => "sp_1032", "name" => "Смарт-процесс: Проекты"],
-            ["id" => "sp_1040", "name" => "Смарт-процесс: Клиенты"],
-        ];
-    }
-
-    // ---------------- helpers ----------------
-
-    private static function getBaseEntities(string $reason): array
-    {
-        // базовый список без смартов (не вводит в заблуждение)
-        return [
-            ["id" => "deal",    "name" => "Сделки"],
-            ["id" => "lead",    "name" => "Лиды"],
-            ["id" => "contact", "name" => "Контакты"],
-            ["id" => "company", "name" => "Компании"],
-            ["id" => "base_reason", "name" => "Источник: " . $reason],
-        ];
-    }
-
-    private static function getPortalRow(string $portalId): ?array
-    {
-        // Если у тебя нет PortalRepository — можно достать напрямую из Db
-        require_once __DIR__ . '/../db/Db.php';
+        // 1) Берём токен портала из БД
         $pdo = Db::pdo();
+        $stmt = $pdo->prepare("SELECT access_token, domain FROM portals WHERE member_id = :mid LIMIT 1");
+        $stmt->execute([':mid' => $portalId]);
+        $portal = $stmt->fetch();
 
-        $st = $pdo->prepare("SELECT * FROM portals WHERE member_id = :id LIMIT 1");
-        $st->execute([':id' => $portalId]);
-        $row = $st->fetch();
-        return $row ?: null;
-    }
+        if (!$portal) {
+            throw new RuntimeException("Portal not found in DB for member_id=" . $portalId);
+        }
+        if (empty($portal['access_token'])) {
+            throw new RuntimeException("access_token is empty for member_id=" . $portalId);
+        }
+        if (empty($portal['domain'])) {
+            throw new RuntimeException("domain is empty for member_id=" . $portalId);
+        }
 
-    private static function b24Call(string $domain, string $accessToken, string $method, array $params = []): array
-    {
-        $url = "https://{$domain}/rest/{$method}.json";
+        $accessToken = $portal['access_token'];
+        $domain = $portal['domain'];
 
-        $ch = curl_init();
+        // 2) Делаем REST запрос в Bitrix24 (crm.entity.types)
+        $url = "https://{$domain}/rest/crm.entity.types.json";
+
+        $ch = curl_init($url);
         curl_setopt_array($ch, [
-            CURLOPT_URL => $url,
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => http_build_query(array_merge($params, [
-                'auth' => $accessToken,
-            ])),
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => 10,
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => http_build_query(['auth' => $accessToken]),
             CURLOPT_TIMEOUT => 20,
         ]);
 
@@ -130,16 +44,52 @@ class EntitiesService
         if ($raw === false) {
             throw new RuntimeException("curl error: " . $err);
         }
+        if ($code < 200 || $code >= 300) {
+            throw new RuntimeException("bitrix http {$code}: " . $raw);
+        }
 
         $data = json_decode($raw, true);
         if (!is_array($data)) {
-            throw new RuntimeException("bad json (http {$code}): " . mb_substr($raw, 0, 300));
+            throw new RuntimeException("Invalid JSON from Bitrix: " . $raw);
+        }
+        if (!empty($data['error'])) {
+            throw new RuntimeException("Bitrix error: " . $data['error'] . " " . ($data['error_description'] ?? ""));
         }
 
-        if (isset($data['error'])) {
-            throw new RuntimeException("b24 error: " . $data['error'] . " / " . ($data['error_description'] ?? ''));
+        $result = $data['result'] ?? [];
+        $entities = [];
+
+        foreach ($result as $item) {
+            // crm.entity.types возвращает список типов, нам нужны базовые + смарты
+            // entityTypeId: 1=lead 2=deal 3=contact 4=company ... + динамические
+            $id = $item['entityTypeId'] ?? null;
+            $name = $item['title'] ?? null;
+
+            if (!$id || !$name) continue;
+
+            // базовые сущности
+            if ($id == 1) $entities[] = ['id' => 'lead', 'name' => 'Лиды'];
+            if ($id == 2) $entities[] = ['id' => 'deal', 'name' => 'Сделки'];
+            if ($id == 3) $entities[] = ['id' => 'contact', 'name' => 'Контакты'];
+            if ($id == 4) $entities[] = ['id' => 'company', 'name' => 'Компании'];
+
+            // смарт-процессы (обычно начинаются от 128+)
+            if ($id >= 128) {
+                $entities[] = ['id' => 'sp_' . $id, 'name' => 'Смарт-процесс: ' . $name];
+            }
         }
 
-        return $data;
+        // Уберём дубли (если базовые пришли несколько раз)
+        $uniq = [];
+        $out = [];
+        foreach ($entities as $e) {
+            $k = $e['id'];
+            if (!isset($uniq[$k])) {
+                $uniq[$k] = true;
+                $out[] = $e;
+            }
+        }
+
+        return $out;
     }
 }
