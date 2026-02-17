@@ -62,12 +62,20 @@ class PortalService
                 server_endpoint=excluded.server_endpoint,
                 updated_at=datetime('now')
         ");
-
+        $existing = null;
+        $stmtCheck = $pdo->prepare("SELECT access_token, refresh_token FROM portals WHERE member_id = :m LIMIT 1");
+        $stmtCheck->execute([':m' => $memberId]);
+        $existing = $stmtCheck->fetch(PDO::FETCH_ASSOC);
         $stmt->execute([
             ':member_id' => $memberId,
             ':domain' => $domain !== '' ? $domain : null,
-            ':access_token' => $accessToken !== '' ? $accessToken : null,
-            ':refresh_token' => $refreshToken !== '' ? $refreshToken : null,
+            ':access_token' => $accessToken !== '' 
+                ? $accessToken 
+                : ($existing['access_token'] ?? null),
+
+            ':refresh_token' => $refreshToken !== '' 
+                ? $refreshToken 
+                : ($existing['refresh_token'] ?? null),
 
             ':application_token' => $payload['application_token'] ?? $payload['APPLICATION_TOKEN'] ?? null,
             ':scope' => $payload['scope'] ?? $payload['SCOPE'] ?? null,
