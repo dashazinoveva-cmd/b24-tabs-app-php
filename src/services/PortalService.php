@@ -74,7 +74,7 @@ class PortalService
             ':user_id' => isset($payload['user_id']) ? (int)$payload['user_id'] : null,
 
             ':client_endpoint' => $clientEndpoint !== '' ? $clientEndpoint : null,
-            ':server_endpoint' => $serverEndpoint !== '' ? $serverEndpoint : null,
+            ':server_endpoint' => $clientEndpoint !== '' ? $clientEndpoint : null,
         ]);
     }
 }
