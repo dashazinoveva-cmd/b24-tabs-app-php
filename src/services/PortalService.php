@@ -9,7 +9,18 @@ class PortalService
         $pdo = Db::pdo();
 
         $memberId = (string)($payload['member_id'] ?? '');
-        $domain = (string)($payload['domain'] ?? '');
+
+        $serverEndpoint = (string)($payload['SERVER_ENDPOINT'] ?? '');
+        $domain = '';
+
+        if ($serverEndpoint) {
+            $parsed = parse_url($serverEndpoint);
+            $domain = $parsed['host'] ?? '';
+        }
+
+        if ($memberId === '' || $domain === '') {
+            throw new RuntimeException("member_id/domain missing");
+        }
 
         if ($memberId === '' || $domain === '') {
             throw new RuntimeException("member_id/domain missing");
