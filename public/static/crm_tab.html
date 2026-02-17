@@ -4,7 +4,7 @@
   <meta charset="utf-8" />
   <title>B24 Tabs — CRM</title>
   <link rel="stylesheet" href="/static/style.css" />
-  <script src="//api.bitrix24.com/api/v1/"></script>
+  <script src="https://api.bitrix24.com/api/v1/"></script>
 </head>
 <body>
 <div class="crmwrap">
@@ -16,6 +16,14 @@
       <div id="status" class="small"></div>
     </div>
   </div>
+<script>
+  (function () {
+    const params = new URLSearchParams(location.search);
+    window.APP_CONTEXT = window.APP_CONTEXT || {};
+    window.APP_CONTEXT.mode = "crm";
+    window.APP_CONTEXT.entityTypeId = params.get("entity") || "deal";
+  })();
+</script>
 <script src="/static/app.js"></script>
 </body>
 </html>
