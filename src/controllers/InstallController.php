@@ -46,8 +46,21 @@ class InstallController
 
         Logger::log("INSTALL POST received", [
             'remote' => $_SERVER['REMOTE_ADDR'] ?? '',
-            'post_keys' => array_keys($post),
+            'post' => $post,
         ]);
+
+        try {
+            PortalService::upsertPortal($post);
+            Logger::log("Portal saved", [
+                'member_id' => $post['member_id'] ?? null,
+                'domain' => $post['domain'] ?? null,
+            ]);
+        } catch (Throwable $e) {
+            Logger::log("Portal save error", [
+                'error' => $e->getMessage(),
+                'post' => $post,
+            ]);
+        }
 
         // ✅ После установки — редирект в настройки
         http_response_code(302);

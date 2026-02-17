@@ -21,7 +21,26 @@ if ($uri === '/install') {
     (new InstallController())->handle($method);
     exit;
 }
+if ($uri === '/api/debug/portal') {
+    header('Content-Type: application/json; charset=utf-8');
 
+    $memberId = $_GET['member_id'] ?? '';
+    if ($memberId === '') {
+        http_response_code(400);
+        echo json_encode(['error' => 'member_id required'], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
+
+    require_once __DIR__ . '/../src/db/Db.php';
+
+    $pdo = Db::pdo();
+    $stmt = $pdo->prepare("SELECT member_id, domain, updated_at FROM portals WHERE member_id = :mid");
+    $stmt->execute([':mid' => $memberId]);
+    $row = $stmt->fetch();
+
+    echo json_encode(['found' => (bool)$row, 'row' => $row ?: null], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 // -------- API: tabs --------
 if (str_starts_with($uri, '/api/tabs')) {
     require_once __DIR__ . '/../src/controllers/TabsController.php';
