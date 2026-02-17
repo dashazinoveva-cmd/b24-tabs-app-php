@@ -21,26 +21,7 @@ if ($uri === '/install') {
     (new InstallController())->handle($method);
     exit;
 }
-if ($uri === '/api/debug/portal') {
-    header('Content-Type: application/json; charset=utf-8');
 
-    $memberId = $_GET['member_id'] ?? '';
-    if ($memberId === '') {
-        http_response_code(400);
-        echo json_encode(['error' => 'member_id required'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    require_once __DIR__ . '/../src/db/Db.php';
-
-    $pdo = Db::pdo();
-    $stmt = $pdo->prepare("SELECT member_id, domain, updated_at FROM portals WHERE member_id = :mid");
-    $stmt->execute([':mid' => $memberId]);
-    $row = $stmt->fetch();
-
-    echo json_encode(['found' => (bool)$row, 'row' => $row ?: null], JSON_UNESCAPED_UNICODE);
-    exit;
-}
 // -------- API: tabs --------
 if (str_starts_with($uri, '/api/tabs')) {
     require_once __DIR__ . '/../src/controllers/TabsController.php';
@@ -97,7 +78,26 @@ if ($uri === '/api/entities') {
 
     exit;
 }
+// DEBUG: показать последние строки лога (только для отладки!)
+if ($uri === '/api/debug/log') {
+    http_response_code(200);
+    header('Content-Type: text/plain; charset=utf-8');
 
+    $config = require __DIR__ . '/../src/config/app.php';
+    $logPath = $config['log_path'] ?? (__DIR__ . '/../storage/app.log');
+
+    if (!file_exists($logPath)) {
+        echo "log not found: " . $logPath;
+        exit;
+    }
+
+    // tail ~200 строк
+    $lines = file($logPath, FILE_IGNORE_NEW_LINES);
+    $tail = array_slice($lines ?: [], -200);
+
+    echo implode("\n", $tail);
+    exit;
+}
 // default
 http_response_code(404);
 header('Content-Type: text/plain; charset=utf-8');
