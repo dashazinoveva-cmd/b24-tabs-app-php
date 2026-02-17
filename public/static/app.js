@@ -35,8 +35,9 @@ const elStatus = document.getElementById("status");
 let autosaveTimer = null;
 let lastSavedValue = null;
 
-function getPortalId() {
-  return state.portalId || (window.APP_CONTEXT && window.APP_CONTEXT.portalId) || "LOCAL";
+function withPortal(url) {
+  const p = encodeURIComponent(getPortalId());
+  return url.includes("?") ? `${url}&portal_id=${p}` : `${url}?portal_id=${p}`;
 }
 
 function withPortal(url) {
@@ -636,40 +637,46 @@ if (btnDelete) {
 }
 
 // ---------- init ----------
-async function startApp() {
-  try {
-    if (ctx.mode === "settings") {
-      await loadEntities();
-    } else {
-      state.entityTypeId = ctx.entityTypeId || "deal";
-      await loadTabs();
+(async function init() {
+  // если BX24 не доступен — работаем локально
+  if (typeof BX24 === "undefined") {
+    console.warn("BX24 is undefined -> fallback to LOCAL");
+    state.portalId = (window.APP_CONTEXT && window.APP_CONTEXT.portalId) || "LOCAL";
+    try {
+      if (ctx.mode === "settings") await loadEntities();
+      else {
+        state.entityTypeId = ctx.entityTypeId || "deal";
+        await loadTabs();
+      }
+    } catch (e) {
+      console.error(e);
+      if (elStatus) elStatus.textContent = "Ошибка загрузки";
     }
-  } catch (e) {
-    console.error(e);
-    if (elStatus) elStatus.textContent = "Ошибка загрузки";
+    return;
   }
-}
 
-if (window.BX24 && typeof BX24.init === "function") {
-  BX24.init(function () {
-    console.log("BX24 INIT OK");
+  BX24.init(async function () {
+    const auth = BX24.getAuth();
+    console.log("BX24 AUTH =", auth);
 
-    BX24.getAuth(function (auth) {
-      console.log("AUTH:", auth);
+    // ВАЖНО: для твоего backend portal_id должен быть member_id
+    const portalId = auth && auth.member_id ? auth.member_id : "LOCAL";
 
-      const portalId = auth && auth.member_id ? auth.member_id : null;
+    state.portalId = portalId;
+    window.APP_CONTEXT = window.APP_CONTEXT || {};
+    window.APP_CONTEXT.portalId = portalId;
 
-      state.portalId = portalId || "LOCAL";
-      window.APP_CONTEXT = window.APP_CONTEXT || {};
-      window.APP_CONTEXT.portalId = state.portalId;
+    console.log("PORTAL_ID SET =", portalId);
 
-      console.log("PORTAL_ID SET =", state.portalId);
-      startApp();
-    });
+    try {
+      if (ctx.mode === "settings") await loadEntities();
+      else {
+        state.entityTypeId = ctx.entityTypeId || "deal";
+        await loadTabs();
+      }
+    } catch (e) {
+      console.error(e);
+      if (elStatus) elStatus.textContent = "Ошибка загрузки";
+    }
   });
-} else {
-  // локально
-  state.portalId = getPortalId();
-  console.log("NO BX24, portalId =", state.portalId);
-  startApp();
-}
+})();
