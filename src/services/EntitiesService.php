@@ -22,7 +22,7 @@ class EntitiesService
 
         // Смарты (crm.type.list)
         $resp = BitrixApi::call($portal, 'crm.type.list', [
-            'order[id]' => 'asc',
+            'order' => ['id' => 'asc'],
         ]);
 
         // В ответе обычно result.types
