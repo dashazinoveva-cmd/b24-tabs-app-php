@@ -9,20 +9,19 @@ class BitrixApi
      */
     public static function call(array $portal, string $method, array $params = []): array
     {
-        $token = (string)($portal['access_token'] ?? '');
-        $endpoint = (string)($portal['server_endpoint'] ?? '');
+        $token  = (string)($portal['access_token'] ?? '');
+        $domain = (string)($portal['domain'] ?? '');
 
-        if ($endpoint === '') {
-            throw new RuntimeException("server_endpoint is empty");
+        if ($domain === '') {
+            throw new RuntimeException("portal domain is empty");
         }
         if ($token === '') {
             throw new RuntimeException("access_token is empty");
         }
 
-        // server_endpoint у тебя: https://oauth.bitrix24.tech/rest/
-        // НУЖНО: https://oauth.bitrix24.tech/rest/user.current.json
-        $base = rtrim($endpoint, "/");              // https://oauth.bitrix24.tech/rest
-        $url  = $base . "/" . $method . ".json";    // .../rest/user.current.json
+        // REST методы вызываем на домене портала, а НЕ на oauth.bitrix24.tech
+        $base = "https://{$domain}/rest";
+        $url  = $base . "/" . $method . ".json";
 
         $payload = $params;
         $payload['auth'] = $token;
