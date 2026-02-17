@@ -2,7 +2,7 @@
 
 require_once __DIR__ . '/../db/Db.php';
 
-class PortalService
+class PortalRepository
 {
     public static function upsertPortal(array $payload): void
     {
