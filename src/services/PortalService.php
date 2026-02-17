@@ -49,13 +49,17 @@ class PortalService
         $stmt->execute([
             ':member_id' => $memberId,
             ':domain' => $domain,
-            ':access_token' => $payload['access_token'] ?? null,
-            ':refresh_token' => $payload['refresh_token'] ?? null,
-            ':application_token' => $payload['application_token'] ?? null,
-            ':scope' => $payload['scope'] ?? null,
-            ':user_id' => isset($payload['user_id']) ? (int)$payload['user_id'] : null,
-            ':client_endpoint' => $payload['client_endpoint'] ?? null,
-            ':server_endpoint' => $payload['server_endpoint'] ?? null,
+
+            // Bitrix поля
+            ':access_token' => $payload['AUTH_ID'] ?? null,
+            ':refresh_token' => $payload['REFRESH_ID'] ?? null,
+
+            ':application_token' => null,
+            ':scope' => null,
+            ':user_id' => null,
+
+            ':client_endpoint' => null,
+            ':server_endpoint' => $payload['SERVER_ENDPOINT'] ?? null,
         ]);
     }
 }
