@@ -50,14 +50,31 @@ if ($uri === '/api/entities') {
     http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
 
-    // portal_id приходит из app.js как ?portal_id=...
     $portalId = $_GET['portal_id'] ?? 'LOCAL';
 
-    echo json_encode([
-        "portal_id" => $portalId,
-        "entities" => EntitiesService::getMockEntities(),
-        "source" => "mock"
-    ], JSON_UNESCAPED_UNICODE);
+    try {
+        $entities = EntitiesService::getEntities($portalId);
+
+        echo json_encode([
+            "portal_id" => $portalId,
+            "entities" => $entities,
+            "source" => "bitrix"
+        ], JSON_UNESCAPED_UNICODE);
+
+    } catch (Throwable $e) {
+
+        Logger::log("entities error", [
+            "portal_id" => $portalId,
+            "error" => $e->getMessage()
+        ]);
+
+        http_response_code(500);
+
+        echo json_encode([
+            "portal_id" => $portalId,
+            "error" => $e->getMessage()
+        ], JSON_UNESCAPED_UNICODE);
+    }
 
     exit;
 }

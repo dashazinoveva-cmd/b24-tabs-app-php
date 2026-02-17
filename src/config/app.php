@@ -8,6 +8,6 @@ return [
     'log_path' => __DIR__ . '/../../storage/app.log',
 
     // Эти значения потом даст кабинет разработчика Bitrix24
-    'client_id' => getenv('B24_CLIENT_ID') ?: '',
-    'client_secret' => getenv('B24_CLIENT_SECRET') ?: '',
+    'b24_client_id' => getenv('B24_CLIENT_ID') ?: '',
+    'b24_client_secret' => getenv('B24_CLIENT_SECRET') ?: '',
 ];
