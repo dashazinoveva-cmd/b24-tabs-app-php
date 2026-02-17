@@ -29,21 +29,19 @@ let sort = {
 const elEntities = document.getElementById("entities");
 const elTabs = document.getElementById("tabs");
 const elEntityTitle = document.getElementById("entityTitle");
-const elLinkInput = document.getElementById("linkInput");
+const elLinkInput = document.getElementById("linkInput");пш
 const elPreview = document.getElementById("previewBox");
 const elStatus = document.getElementById("status");
 let autosaveTimer = null;
 let lastSavedValue = null;
 
+function getPortalId() {
+  return state.portalId || (window.APP_CONTEXT && window.APP_CONTEXT.portalId) || "LOCAL";
+}
+
 function withPortal(url) {
-  if (!state.portalId) {
-    console.error("portalId not initialized");
-    return url;
-  }
-  const p = encodeURIComponent(state.portalId);
-  return url.includes("?")
-    ? `${url}&portal_id=${p}`
-    : `${url}?portal_id=${p}`;
+  const p = encodeURIComponent(getPortalId());
+  return url.includes("?") ? `${url}&portal_id=${p}` : `${url}?portal_id=${p}`;
 }
 
 async function api(url, options = {}) {
@@ -638,24 +636,31 @@ if (btnDelete) {
 }
 
 // ---------- init ----------
-BX24.init(async function () {
+BX24.init(function () {
   console.log("BX24 INIT OK");
 
-  const auth = BX24.getAuth();
-  console.log("AUTH:", auth);
+  BX24.getAuth(async function (auth) {
+    console.log("AUTH:", auth);
 
-  state.portalId = auth.domain;
-  ctx.portalId = auth.domain;
+    // ВАЖНО: portal_id = member_id (а не domain)
+    const portalId = auth && auth.member_id ? auth.member_id : null;
 
-  try {
-    if (ctx.mode === "settings") {
-      await loadEntities();
-    } else {
-      state.entityTypeId = ctx.entityTypeId || "deal";
-      await loadTabs();
+    state.portalId = portalId || "LOCAL";
+    window.APP_CONTEXT = window.APP_CONTEXT || {};
+    window.APP_CONTEXT.portalId = state.portalId;
+
+    console.log("PORTAL_ID SET =", state.portalId);
+
+    try {
+      if (ctx.mode === "settings") {
+        await loadEntities();
+      } else {
+        state.entityTypeId = ctx.entityTypeId || "deal";
+        await loadTabs();
+      }
+    } catch (e) {
+      console.error(e);
+      if (elStatus) elStatus.textContent = "Ошибка загрузки";
     }
-  } catch (e) {
-    console.error(e);
-    if (elStatus) elStatus.textContent = "Ошибка загрузки";
-  }
+  });
 });
