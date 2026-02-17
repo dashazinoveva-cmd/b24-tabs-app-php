@@ -3,6 +3,9 @@
 require_once __DIR__ . '/../src/services/Logger.php';
 require_once __DIR__ . '/../src/services/EntitiesService.php';
 require_once __DIR__ . '/../src/services/TabsService.php';
+require_once __DIR__ . '/../src/services/PortalRepository.php';
+require_once __DIR__ . '/../src/services/PortalService.php';
+require_once __DIR__ . '/../src/services/BitrixApi.php';
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
@@ -53,22 +56,40 @@ if ($uri === '/api/entities') {
     $portalId = $_GET['portal_id'] ?? 'LOCAL';
 
     try {
+        // если portal_id не пришёл или LOCAL — не падаем, а отдаем мок
+        if ($portalId === 'LOCAL' || $portalId === '') {
+            $entities = EntitiesService::getMockEntities();
+            echo json_encode([
+                "portal_id" => $portalId,
+                "entities" => $entities,
+                "source" => "mock_local"
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+
+        // пробуем получить реальные сущности
         $entities = EntitiesService::getEntities($portalId);
+
         echo json_encode([
             "portal_id" => $portalId,
             "entities" => $entities,
             "source" => "bitrix"
         ], JSON_UNESCAPED_UNICODE);
+
     } catch (Throwable $e) {
         Logger::log("entities error", [
             "portal_id" => $portalId,
             "error" => $e->getMessage()
         ]);
 
-        http_response_code(500);
+        // fallback на мок, чтобы приложение не умирало
+        $entities = EntitiesService::getMockEntities();
+
         echo json_encode([
             "portal_id" => $portalId,
-            "error" => $e->getMessage(),
+            "entities" => $entities,
+            "source" => "mock_fallback",
+            "warning" => $e->getMessage(),
         ], JSON_UNESCAPED_UNICODE);
     }
 
