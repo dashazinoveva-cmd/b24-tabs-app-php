@@ -145,7 +145,7 @@ if ($uri === '/api/debug/b24') {
 
     try {
         // самый простой метод — получение текущего пользователя
-        $data = BitrixApi::call($portal, 'user.current', []);
+        $data = BitrixApi::call($portal, 'crm.deal.fields', []);
         echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
     } catch (Throwable $e) {
         http_response_code(500);
