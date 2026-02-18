@@ -144,7 +144,11 @@ if ($uri === '/api/debug/b24') {
     }
 
     try {
-        $data = BitrixApi::call($portal, 'crm.type.list', ['order[id]' => 'asc']);
+        $data = BitrixApi::call($portal, 'crm.deal.list', [
+            'select' => ['ID', 'TITLE', 'STAGE_ID'],
+            'order' => ['ID' => 'DESC'],
+            'limit' => 5
+        ]);
         echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
     } catch (Throwable $e) {
         http_response_code(500);
