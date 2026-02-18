@@ -149,3 +149,10 @@ if ($uri === '/api/portal/sync') {
 http_response_code(404);
 header('Content-Type: text/plain; charset=utf-8');
 echo "Not found";
+
+if ($uri === '/api/debug/migrate') {
+    $pdo = Db::pdo();
+    $pdo->exec("ALTER TABLE tabs ADD COLUMN placement_id TEXT");
+    echo "OK";
+    exit;
+}
