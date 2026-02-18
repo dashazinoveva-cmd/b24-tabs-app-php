@@ -1,4 +1,5 @@
-const ctx = window.APP_CONTEXT || { mode: "settings"};
+const ctx = window.APP_CONTEXT || {};
+ctx.mode = ctx.mode || "settings";
 
 let state = {
   portalId: null,
@@ -36,7 +37,9 @@ let autosaveTimer = null;
 let lastSavedValue = null;
 
 function getPortalId() {
-  return state.portalId || (window.APP_CONTEXT && window.APP_CONTEXT.portalId) || "LOCAL";
+  const pid = state.portalId || (window.APP_CONTEXT && window.APP_CONTEXT.portalId) || null;
+  if (!pid) throw new Error("portalId is not set (BX24.getAuth() returned empty member_id)");
+  return pid;
 }
 
 function withPortal(url) {
@@ -653,59 +656,45 @@ function startApp() {
 
 BX24.init(async function () {
   const auth = BX24.getAuth && BX24.getAuth();
-  const portalId = auth && auth.member_id ? auth.member_id : null;
 
-  state.portalId = portalId || "LOCAL";
-  window.APP_CONTEXT = window.APP_CONTEXT || {};
-  window.APP_CONTEXT.portalId = state.portalId;
+  const portalId = auth?.member_id || auth?.MEMBER_ID || null;
+  const domain   = auth?.domain || auth?.DOMAIN || null;
 
-  console.log("PORTAL_ID SET =", state.portalId);
-
-  // 🔥 ВАЖНО: синхронизируем портал в БД
-  try {
-    if (auth) {
-      const response = await fetch("/api/portal/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          member_id: auth.member_id,
-          domain: auth.domain,
-          access_token: auth.access_token,
-          refresh_token: auth.refresh_token,
-          client_endpoint: auth.domain
-            ? `https://${auth.domain}/rest/`
-            : null,
-          server_endpoint: null
-        })
-      });
-
-      const data = await response.json();
-      console.log("PORTAL SYNC RESULT:", data);
-    }
-  } catch (e) {
-    console.warn("portal sync failed", e);
+  if (!portalId) {
+    console.error("BX24.getAuth() returned no member_id", auth);
+    if (elStatus) elStatus.textContent = "Ошибка: portalId не получен из BX24";
+    return;
   }
-    // ✅ дописываем домен портала и client_endpoint в БД
-  try {
-    const domain = auth?.domain || auth?.DOMAIN || ""; // Bitrix часто даёт auth.domain
-    const clientEndpoint = domain ? `https://${domain}/rest/` : "";
 
+  state.portalId = portalId;
+  window.APP_CONTEXT = window.APP_CONTEXT || {};
+  window.APP_CONTEXT.portalId = portalId;
+
+  console.log("PORTAL_ID SET =", portalId);
+
+  // ✅ синхронизируем ТОЛЬКО домен/endpoint (не токены)
+  try {
     if (domain) {
-      await fetch("/api/portal/sync?portal_id=" + encodeURIComponent(state.portalId), {
+      const clientEndpoint = `https://${domain}/rest/`;
+
+      const r = await fetch(withPortal("/api/portal/sync"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          member_id: state.portalId,
+          member_id: portalId,
           domain: domain,
           client_endpoint: clientEndpoint
         })
       });
-      console.log("PORTAL SYNC OK:", domain);
+
+      const data = await r.json().catch(() => ({}));
+      console.log("PORTAL SYNC OK", data);
     } else {
-      console.warn("PORTAL SYNC SKIPPED: auth.domain is empty", auth);
+      console.warn("auth.domain is empty — portal sync skipped", auth);
     }
   } catch (e) {
     console.warn("PORTAL SYNC ERROR", e);
   }
+
   startApp();
 });

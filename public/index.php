@@ -10,7 +10,10 @@ require_once __DIR__ . '/../src/services/BitrixApi.php';
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
-// healthcheck
+
+// --------------------
+// HEALTHCHECK
+// --------------------
 if ($uri === '/health') {
     http_response_code(200);
     header('Content-Type: text/plain; charset=utf-8');
@@ -18,62 +21,72 @@ if ($uri === '/health') {
     exit;
 }
 
-// install (Bitrix24 будет дергать этот url)
+
+// --------------------
+// INSTALL (Bitrix)
+// --------------------
 if ($uri === '/install') {
     require_once __DIR__ . '/../src/controllers/InstallController.php';
     (new InstallController())->handle($method);
     exit;
 }
 
-// -------- API: tabs --------
+
+// --------------------
+// API: TABS
+// --------------------
 if (str_starts_with($uri, '/api/tabs')) {
     require_once __DIR__ . '/../src/controllers/TabsController.php';
     (new TabsController())->handle($method, $uri);
     exit;
 }
 
-// settings page
+
+// --------------------
+// SETTINGS PAGE
+// --------------------
 if ($uri === '/settings') {
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
-    readfile(__DIR__ . '/static/settings.html'); // ✅ теперь внутри public/static
+    readfile(__DIR__ . '/static/settings.html');
     exit;
 }
 
-// crm tab page
+
+// --------------------
+// CRM TAB PAGE
+// --------------------
 if ($uri === '/crm-tab') {
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
-    readfile(__DIR__ . '/static/crm_tab.html'); // ✅ теперь внутри public/static
+    readfile(__DIR__ . '/static/crm_tab.html');
     exit;
 }
 
-// api/entities
+
+// --------------------
+// API: ENTITIES (PRODUCTION)
+// --------------------
 if ($uri === '/api/entities') {
-    http_response_code(200);
     header('Content-Type: application/json; charset=utf-8');
 
-    $portalId = $_GET['portal_id'] ?? 'LOCAL';
+    $portalId = $_GET['portal_id'] ?? '';
+
+    if ($portalId === '') {
+        http_response_code(400);
+        echo json_encode([
+            "error" => "portal_id is required"
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
+    }
 
     try {
-        // если portal_id не пришёл или LOCAL — не падаем, а отдаем мок
-        if ($portalId === 'LOCAL' || $portalId === '') {
-            $entities = EntitiesService::getMockEntities();
-            echo json_encode([
-                "portal_id" => $portalId,
-                "entities" => $entities,
-                "source" => "mock_local"
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
-        }
-
-        // пробуем получить реальные сущности
         $entities = EntitiesService::getEntities($portalId);
 
+        http_response_code(200);
         echo json_encode([
             "portal_id" => $portalId,
-            "entities" => $entities,
-            "source" => "bitrix"
+            "entities" => $entities
         ], JSON_UNESCAPED_UNICODE);
 
     } catch (Throwable $e) {
@@ -82,81 +95,19 @@ if ($uri === '/api/entities') {
             "error" => $e->getMessage()
         ]);
 
-        // fallback на мок, чтобы приложение не умирало
-        $entities = EntitiesService::getMockEntities();
-
+        http_response_code(500);
         echo json_encode([
-            "portal_id" => $portalId,
-            "entities" => $entities,
-            "source" => "mock_fallback",
-            "warning" => $e->getMessage(),
+            "error" => $e->getMessage()
         ], JSON_UNESCAPED_UNICODE);
     }
 
     exit;
 }
-// DEBUG: показать последние строки лога (только для отладки!)
-if ($uri === '/api/debug/log') {
-    http_response_code(200);
-    header('Content-Type: text/plain; charset=utf-8');
 
-    $config = require __DIR__ . '/../src/config/app.php';
-    $logPath = $config['log_path'] ?? (__DIR__ . '/../storage/app.log');
 
-    if (!file_exists($logPath)) {
-        echo "log not found: " . $logPath;
-        exit;
-    }
-
-    // tail ~200 строк
-    $lines = file($logPath, FILE_IGNORE_NEW_LINES);
-    $tail = array_slice($lines ?: [], -200);
-
-    echo implode("\n", $tail);
-    exit;
-}
-if ($uri === '/api/debug/portal') {
-    header('Content-Type: application/json; charset=utf-8');
-    $memberId = $_GET['member_id'] ?? '';
-    $row = PortalRepository::findByMemberId($memberId);
-
-    if ($row) {
-        // маскируем токены
-        $row['access_token']  = $row['access_token'] ? '***' : null;
-        $row['refresh_token'] = $row['refresh_token'] ? '***' : null;
-    }
-
-    echo json_encode(["found" => (bool)$row, "row" => $row], JSON_UNESCAPED_UNICODE);
-    exit;
-}
-if ($uri === '/api/debug/b24') {
-    header('Content-Type: application/json; charset=utf-8');
-
-    $portalId = $_GET['portal_id'] ?? '';
-    require_once __DIR__ . '/../src/services/PortalRepository.php';
-    require_once __DIR__ . '/../src/services/BitrixApi.php';
-
-    $portal = PortalRepository::findByMemberId($portalId);
-    if (!$portal) {
-        http_response_code(404);
-        echo json_encode(['error' => 'portal not found'], JSON_UNESCAPED_UNICODE);
-        exit;
-    }
-
-    try {
-        $data = BitrixApi::call($portal, 'crm.deal.list', [
-            'select' => ['ID', 'TITLE', 'STAGE_ID'],
-            'order' => ['ID' => 'DESC'],
-            'limit' => 5
-        ]);
-        echo json_encode(['ok' => true, 'data' => $data], JSON_UNESCAPED_UNICODE);
-    } catch (Throwable $e) {
-        http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
-    }
-    exit;
-}
-// api/portal/sync  (прилетает из фронта, чтобы дописать domain/client_endpoint)
+// --------------------
+// API: PORTAL SYNC
+// --------------------
 if ($uri === '/api/portal/sync') {
     header('Content-Type: application/json; charset=utf-8');
 
@@ -172,15 +123,29 @@ if ($uri === '/api/portal/sync') {
 
     try {
         PortalService::upsertPortal($data);
+
         http_response_code(200);
         echo json_encode(['ok' => true], JSON_UNESCAPED_UNICODE);
+
     } catch (Throwable $e) {
+        Logger::log("portal sync error", [
+            "error" => $e->getMessage()
+        ]);
+
         http_response_code(500);
-        echo json_encode(['ok' => false, 'error' => $e->getMessage()], JSON_UNESCAPED_UNICODE);
+        echo json_encode([
+            'ok' => false,
+            'error' => $e->getMessage()
+        ], JSON_UNESCAPED_UNICODE);
     }
+
     exit;
 }
-// default
+
+
+// --------------------
+// DEFAULT
+// --------------------
 http_response_code(404);
 header('Content-Type: text/plain; charset=utf-8');
 echo "Not found";
