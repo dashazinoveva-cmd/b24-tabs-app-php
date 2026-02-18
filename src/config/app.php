@@ -6,4 +6,5 @@ return [
 
     'b24_client_id' => 'ТВОЙ_CLIENT_ID_ИЗ_КАБИНЕТА',
     'b24_client_secret' => 'ТВОЙ_CLIENT_SECRET_ИЗ_КАБИНЕТА',
+    'app_url' => getenv('APP_URL') ?: 'https://dev.calendar.consult-info.ru',
 ];

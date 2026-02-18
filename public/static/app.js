@@ -641,6 +641,10 @@ if (btnDelete) {
 function startApp() {
   return (async () => {
     try {
+      if (ctx.mode === "crm-tab") {
+        await loadSingleTabAndRender();
+        return;
+      }
       if (ctx.mode === "settings") {
         await loadEntities();
       } else {
@@ -652,6 +656,30 @@ function startApp() {
       if (elStatus) elStatus.textContent = "Ошибка загрузки";
     }
   })();
+}
+async function loadSingleTabAndRender() {
+  const tabId = ctx.tabId;
+  if (!tabId) {
+    document.getElementById("root").innerHTML = '<div class="empty">tab_id не передан</div>';
+    return;
+  }
+
+  // получаем портал
+  const auth = BX24.getAuth && BX24.getAuth();
+  state.portalId = auth?.member_id || "LOCAL";
+
+  const data = await api(`/api/tabs/${encodeURIComponent(tabId)}`);
+  const tab = data.tab;
+
+  if (!tab?.link) {
+    document.getElementById("root").innerHTML = '<div class="empty">Ссылка для вкладки не задана</div>';
+    return;
+  }
+
+  const iframe = document.createElement("iframe");
+  iframe.src = tab.link;
+  document.getElementById("root").innerHTML = "";
+  document.getElementById("root").appendChild(iframe);
 }
 
 BX24.init(async function () {

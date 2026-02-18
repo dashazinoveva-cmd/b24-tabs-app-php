@@ -1,29 +1,25 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="utf-8" />
-  <title>B24 Tabs — CRM</title>
-  <link rel="stylesheet" href="/static/style.css" />
-  <script src="https://api.bitrix24.com/api/v1/"></script>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CRM Tab</title>
+  <script src="//api.bitrix24.com/api/v1/"></script>
+  <style>
+    html,body{height:100%;margin:0}
+    iframe{width:100%;height:100%;border:0}
+    .empty{padding:16px;font-family:system-ui}
+  </style>
 </head>
 <body>
-<div class="crmwrap">
-    <div class="tabs-strip">
-      <div id="tabs" class="tabs"></div>
-    </div>
-    <div class="editor">
-      <div id="previewBox" class="preview"></div>
-      <div id="status" class="small"></div>
-    </div>
-  </div>
-<script>
-  (function () {
+  <div id="root"></div>
+
+  <script>
+    // tab_id приходит в querystring /crm-tab?tab_id=123
     const params = new URLSearchParams(location.search);
-    window.APP_CONTEXT = window.APP_CONTEXT || {};
-    window.APP_CONTEXT.mode = "crm";
-    window.APP_CONTEXT.entityTypeId = params.get("entity") || "deal";
-  })();
-</script>
-<script src="/static/app.js"></script>
+    window.APP_CONTEXT = { mode: "crm-tab", tabId: params.get("tab_id") };
+  </script>
+
+  <script src="/static/app.js"></script>
 </body>
 </html>
