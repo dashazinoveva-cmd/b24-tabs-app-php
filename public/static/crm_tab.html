@@ -19,7 +19,12 @@
     const params = new URLSearchParams(location.search);
     window.APP_CONTEXT = { mode: "crm-tab", tabId: params.get("tab_id") };
   </script>
-
+  <script>
+    window.APP_CONTEXT = {
+      mode: "crm",
+      tabId: new URLSearchParams(window.location.search).get("tab_id")
+    };
+  </script>
   <script src="/static/app.js"></script>
 </body>
 </html>

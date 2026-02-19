@@ -639,19 +639,39 @@ if (btnDelete) {
 function startApp() {
   return (async () => {
     try {
-      if (ctx.mode === "crm-tab") {
-        await loadSingleTabAndRender();
+
+      // ---------------- CRM TAB MODE ----------------
+      if (ctx.mode === "crm") {
+
+        const tabId = ctx.tabId;
+        if (!tabId) return;
+
+        const data = await api(`/api/tabs?entity_type_id=deal`);
+        const tab = (data.tabs || []).find(t => String(t.id) === String(tabId));
+
+        if (!tab || !tab.link) {
+          document.body.innerHTML = "<div style='padding:40px;text-align:center'>Ссылка не задана</div>";
+          return;
+        }
+
+        document.body.innerHTML = "";
+        const iframe = document.createElement("iframe");
+        iframe.src = tab.link;
+        iframe.style.width = "100%";
+        iframe.style.height = "100vh";
+        iframe.style.border = "0";
+        document.body.appendChild(iframe);
+
         return;
       }
+
+      // ---------------- SETTINGS MODE ----------------
       if (ctx.mode === "settings") {
         await loadEntities();
-      } else {
-        state.entityTypeId = ctx.entityTypeId || "deal";
-        await loadTabs();
       }
+
     } catch (e) {
       console.error(e);
-      if (elStatus) elStatus.textContent = "Ошибка загрузки";
     }
   })();
 }
