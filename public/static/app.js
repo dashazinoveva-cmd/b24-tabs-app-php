@@ -684,15 +684,7 @@ async function loadSingleTabAndRender() {
 
 BX24.init(async function () {
   const auth = BX24.getAuth && BX24.getAuth();
-
-  const portalId = auth?.member_id || auth?.MEMBER_ID || null;
-  const domain   = auth?.domain || auth?.DOMAIN || null;
-
-  if (!portalId) {
-    console.error("BX24.getAuth() returned no member_id", auth);
-    if (elStatus) elStatus.textContent = "Ошибка: portalId не получен из BX24";
-    return;
-  }
+  const portalId = auth?.member_id || "LOCAL";
 
   state.portalId = portalId;
   window.APP_CONTEXT = window.APP_CONTEXT || {};
@@ -700,28 +692,33 @@ BX24.init(async function () {
 
   console.log("PORTAL_ID SET =", portalId);
 
-  // ✅ синхронизируем ТОЛЬКО домен/endpoint (не токены)
+  // один sync, без null/undefined
   try {
+    const domain = auth?.domain || auth?.DOMAIN || "";
+    const access = auth?.access_token || auth?.AUTH_ID || "";
+    const refresh = auth?.refresh_token || auth?.REFRESH_ID || "";
+
+    const payload = {
+      member_id: portalId,
+    };
+
     if (domain) {
-      const clientEndpoint = `https://${domain}/rest/`;
-
-      const r = await fetch(withPortal("/api/portal/sync"), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          member_id: portalId,
-          domain: domain,
-          client_endpoint: clientEndpoint
-        })
-      });
-
-      const data = await r.json().catch(() => ({}));
-      console.log("PORTAL SYNC OK", data);
-    } else {
-      console.warn("auth.domain is empty — portal sync skipped", auth);
+      payload.domain = domain;
+      payload.client_endpoint = `https://${domain}/rest/`;
+      payload.server_endpoint = `https://${domain}/rest/`; // важно для BitrixApi
     }
+    if (access) payload.access_token = access;
+    if (refresh) payload.refresh_token = refresh;
+
+    const resp = await fetch("/api/portal/sync", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    console.log("PORTAL SYNC OK", await resp.json());
   } catch (e) {
-    console.warn("PORTAL SYNC ERROR", e);
+    console.warn("PORTAL SYNC FAILED", e);
   }
 
   startApp();

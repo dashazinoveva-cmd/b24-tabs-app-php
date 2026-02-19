@@ -52,15 +52,15 @@ class PortalService
                 :scope, :user_id, :client_endpoint, :server_endpoint, datetime('now')
             )
             ON CONFLICT(member_id) DO UPDATE SET
-                domain=excluded.domain,
-                access_token=excluded.access_token,
-                refresh_token=excluded.refresh_token,
-                application_token=excluded.application_token,
-                scope=excluded.scope,
-                user_id=excluded.user_id,
-                client_endpoint=excluded.client_endpoint,
-                server_endpoint=excluded.server_endpoint,
-                updated_at=datetime('now')
+                domain = COALESCE(excluded.domain, portals.domain),
+                access_token = COALESCE(excluded.access_token, portals.access_token),
+                refresh_token = COALESCE(excluded.refresh_token, portals.refresh_token),
+                application_token = COALESCE(excluded.application_token, portals.application_token),
+                scope = COALESCE(excluded.scope, portals.scope),
+                user_id = COALESCE(excluded.user_id, portals.user_id),
+                client_endpoint = COALESCE(excluded.client_endpoint, portals.client_endpoint),
+                server_endpoint = COALESCE(excluded.server_endpoint, portals.server_endpoint),
+                updated_at = datetime('now')
         ");
         $existing = null;
         $stmtCheck = $pdo->prepare("SELECT access_token, refresh_token FROM portals WHERE member_id = :m LIMIT 1");
