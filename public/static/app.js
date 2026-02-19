@@ -1,9 +1,10 @@
-const ctx = window.APP_CONTEXT || {};
-ctx.mode = ctx.mode || "settings";
+function getCtx() {
+  return window.APP_CONTEXT || { mode: "settings" };
+}
 
 let state = {
   portalId: null,
-  entityTypeId: ctx.entityTypeId || null,
+  entityTypeId: null,
   entities: [],
   tabs: [],
   activeTabId: null,
@@ -403,7 +404,7 @@ function renderTabs() {
     title.textContent = t.title;
     tab.appendChild(title);
 
-    if (ctx.mode === "settings") {
+    if (getCtx().mode === "settings") {
         const handle = document.createElement("span");
         handle.className = "tab-handle";
         handle.title = "Перетащить";
@@ -542,7 +543,7 @@ async function saveActiveLinkNow({ silent = false } = {}) {
   }
 }
 // ---------- buttons ----------
-if (ctx.mode === "settings" && elLinkInput) {
+if (getCtx().mode === "settings" && elLinkInput) {
   elLinkInput.addEventListener("input", () => {
       const value = elLinkInput.value.trim();
 
@@ -639,21 +640,26 @@ if (btnDelete) {
 function startApp() {
   return (async () => {
     try {
+      const ctx = getCtx();
 
-      // ---------------- CRM TAB MODE ----------------
+      // --- CRM TAB MODE (вкладка в карточке) ---
       if (ctx.mode === "crm") {
+        const tabId = getCtx().tabId;
+        if (!tabId) {
+          document.body.innerHTML = "<div style='padding:20px'>tab_id is missing</div>";
+          return;
+        }
 
-        const tabId = ctx.tabId;
-        if (!tabId) return;
-
+        // берём конкретный таб (лучше отдельным эндпоинтом, см. шаг 1.3 ниже)
         const data = await api(`/api/tabs?entity_type_id=deal`);
         const tab = (data.tabs || []).find(t => String(t.id) === String(tabId));
 
         if (!tab || !tab.link) {
-          document.body.innerHTML = "<div style='padding:40px;text-align:center'>Ссылка не задана</div>";
+          document.body.innerHTML = "<div style='padding:20px'>Ссылка не задана</div>";
           return;
         }
 
+        // рисуем только iframe
         document.body.innerHTML = "";
         const iframe = document.createElement("iframe");
         iframe.src = tab.link;
@@ -661,43 +667,20 @@ function startApp() {
         iframe.style.height = "100vh";
         iframe.style.border = "0";
         document.body.appendChild(iframe);
-
         return;
       }
 
-      // ---------------- SETTINGS MODE ----------------
+      // --- SETTINGS MODE (само приложение) ---
       if (ctx.mode === "settings") {
         await loadEntities();
+        return;
       }
 
     } catch (e) {
       console.error(e);
+      if (elStatus) elStatus.textContent = "Ошибка загрузки";
     }
   })();
-}
-async function loadSingleTabAndRender() {
-  const tabId = ctx.tabId;
-  if (!tabId) {
-    document.getElementById("root").innerHTML = '<div class="empty">tab_id не передан</div>';
-    return;
-  }
-
-  // получаем портал
-  const auth = BX24.getAuth && BX24.getAuth();
-  state.portalId = auth?.member_id || "LOCAL";
-
-  const data = await api(`/api/tabs/${encodeURIComponent(tabId)}`);
-  const tab = data.tab;
-
-  if (!tab?.link) {
-    document.getElementById("root").innerHTML = '<div class="empty">Ссылка для вкладки не задана</div>';
-    return;
-  }
-
-  const iframe = document.createElement("iframe");
-  iframe.src = tab.link;
-  document.getElementById("root").innerHTML = "";
-  document.getElementById("root").appendChild(iframe);
 }
 
 BX24.init(async function () {
