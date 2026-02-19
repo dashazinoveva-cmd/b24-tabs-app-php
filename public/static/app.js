@@ -1,5 +1,9 @@
 function getCtx() {
-  return window.APP_CONTEXT || { mode: "settings" };
+  const ctx = window.APP_CONTEXT || {};
+  return {
+    mode: ctx.mode || "settings", // <- ключевая строка
+    ...ctx,
+  };
 }
 
 let state = {
