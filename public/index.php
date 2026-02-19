@@ -141,8 +141,21 @@ if ($uri === '/api/portal/sync') {
 
     exit;
 }
+if ($uri === '/api/debug/portal') {
+    require_once __DIR__ . '/../src/services/PortalRepository.php';
+    header('Content-Type: application/json; charset=utf-8');
 
+    $memberId = $_GET['member_id'] ?? '';
+    $row = PortalRepository::findByMemberId($memberId);
 
+    if ($row) {
+        $row['access_token']  = $row['access_token'] ? '***' : null;
+        $row['refresh_token'] = $row['refresh_token'] ? '***' : null;
+    }
+
+    echo json_encode(["found" => (bool)$row, "row" => $row], JSON_UNESCAPED_UNICODE);
+    exit;
+}
 // --------------------
 // DEFAULT
 // --------------------

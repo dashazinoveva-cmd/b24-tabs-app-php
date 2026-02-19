@@ -17,11 +17,8 @@ class PlacementService
 
     public static function buildHandlerUrl(array $portal, int $tabId): string
     {
-        $appDomain = $portal['domain'] ?: ($_SERVER['HTTP_HOST'] ?? '');
-        if ($appDomain === '') {
-            throw new RuntimeException("Cannot build handler url: app domain empty");
-        }
-        return "https://{$appDomain}/crm-tab?tab_id={$tabId}";
+        $appHost = $_SERVER['HTTP_HOST']; // dev.calendar.consult-info.ru
+        return "https://{$appHost}/crm-tab?tab_id={$tabId}";
     }
 
     // ✅ порядок аргументов как в TabsController: ($portal, $entityTypeId, $tabId, $title)

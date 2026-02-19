@@ -581,15 +581,13 @@ if (btnAdd) {
         title: title.trim()
       })
     });
-
+    await loadTabs();
     // ожидаем, что бэк вернёт { tab: {...} } или { id: ... } — подстрахуемся
     const newId =
       created?.tab?.id ??
       created?.id ??
       created?.tab_id ??
       null;
-
-    await loadTabs();
 
     if (newId) {
       setActiveTab(newId);
