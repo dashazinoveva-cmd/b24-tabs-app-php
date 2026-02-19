@@ -156,6 +156,23 @@ if ($uri === '/api/debug/portal') {
     echo json_encode(["found" => (bool)$row, "row" => $row], JSON_UNESCAPED_UNICODE);
     exit;
 }
+if ($uri === '/api/debug/log') {
+    http_response_code(200);
+    header('Content-Type: text/plain; charset=utf-8');
+
+    $config = require __DIR__ . '/../src/config/app.php';
+    $logPath = $config['log_path'] ?? (__DIR__ . '/../storage/app.log');
+
+    if (!file_exists($logPath)) {
+        echo "log not found: " . $logPath;
+        exit;
+    }
+
+    $lines = file($logPath, FILE_IGNORE_NEW_LINES);
+    $tail = array_slice($lines ?: [], -300);
+    echo implode("\n", $tail);
+    exit;
+}
 // --------------------
 // DEFAULT
 // --------------------

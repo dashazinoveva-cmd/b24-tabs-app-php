@@ -1,7 +1,7 @@
 <?php
 
 require_once __DIR__ . '/BitrixApi.php';
-
+require_once __DIR__ . '/Logger.php';
 class PlacementService
 {
     public static function placementName(string $entityTypeId): ?string
@@ -41,6 +41,12 @@ class PlacementService
             'PLACEMENT' => $placement,
             'HANDLER'   => $handler,
             'TITLE'     => $title,
+        ]);
+        Logger::log("placement.bind raw", [
+            "entity_type_id" => $entityTypeId,
+            "tab_id" => $tabId,
+            "title" => $title,
+            "resp" => $resp,
         ]);
 
         // BitrixApi у тебя возвращает ВЕСЬ ответ
