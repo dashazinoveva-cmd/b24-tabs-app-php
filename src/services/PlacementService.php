@@ -50,6 +50,7 @@ class PlacementService
         if (is_scalar($result)) return (string)$result;
 
         throw new RuntimeException("placement.bind: unexpected response: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
+        throw new RuntimeException("placement.bind raw: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
     }
 
     public static function unbind(array $portal, string $placementId): void
