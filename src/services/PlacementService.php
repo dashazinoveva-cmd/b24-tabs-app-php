@@ -17,9 +17,14 @@ class PlacementService
 
     public static function buildHandlerUrl(int $tabId): string
     {
-        // домен ТВОЕГО приложения (dev.calendar.consult-info.ru), а не домен портала Bitrix
-        $appHost = $_SERVER['HTTP_HOST'];
-        return "https://{$appHost}/crm-tab?tab_id={$tabId}";
+        $config = require __DIR__ . '/../config/app.php';
+        $base = rtrim((string)($config['app_url'] ?? ''), '/');
+
+        if ($base === '') {
+            throw new RuntimeException("app_url is not set in config/app.php");
+        }
+
+        return $base . "/crm-tab?tab_id=" . urlencode((string)$tabId);
     }
 
     // ✅ единая сигнатура: portal, entityTypeId, tabId, title
