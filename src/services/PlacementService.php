@@ -1,3 +1,7 @@
+<?php
+
+require_once __DIR__ . '/BitrixApi.php';
+
 class PlacementService
 {
     public static function placementName(string $entityTypeId): ?string
@@ -11,14 +15,14 @@ class PlacementService
         };
     }
 
-    public static function buildHandlerUrl(array $portal, int $tabId): string
+    public static function buildHandlerUrl(int $tabId): string
     {
-        // handler ДОЛЖЕН быть на домене приложения
-        $appHost = $_SERVER['HTTP_HOST']; // dev.calendar.consult-info.ru
+        // домен ТВОЕГО приложения (dev.calendar.consult-info.ru), а не домен портала Bitrix
+        $appHost = $_SERVER['HTTP_HOST'];
         return "https://{$appHost}/crm-tab?tab_id={$tabId}";
     }
 
-    // ✅ единая сигнатура
+    // ✅ единая сигнатура: portal, entityTypeId, tabId, title
     public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
     {
         $placement = self::placementName($entityTypeId);
@@ -26,18 +30,21 @@ class PlacementService
             throw new RuntimeException("Unsupported entity_type_id={$entityTypeId} for placement.bind");
         }
 
-        $handler = self::buildHandlerUrl($portal, $tabId);
+        $handler = self::buildHandlerUrl($tabId);
 
-        $result = BitrixApi::call($portal, 'placement.bind', [
+        $resp = BitrixApi::call($portal, 'placement.bind', [
             'PLACEMENT' => $placement,
             'HANDLER'   => $handler,
             'TITLE'     => $title,
         ]);
 
+        // BitrixApi у тебя возвращает ВЕСЬ ответ
+        $result = $resp['result'] ?? null;
+
         if (is_array($result) && isset($result['ID'])) return (string)$result['ID'];
         if (is_scalar($result)) return (string)$result;
 
-        throw new RuntimeException("placement.bind: unexpected response");
+        throw new RuntimeException("placement.bind: unexpected response: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
     }
 
     public static function unbind(array $portal, string $placementId): void

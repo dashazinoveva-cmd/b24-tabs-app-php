@@ -240,7 +240,7 @@ class TabsController
     }
 
     private function deleteTab(int $tabId): void
-    {
+    {   
         $portalId = $_GET['portal_id'] ?? 'LOCAL';
 
         $pdo = Db::pdo();
