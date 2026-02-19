@@ -650,27 +650,30 @@ function startApp() {
 
       // --- CRM TAB MODE (вкладка в карточке) ---
       if (ctx.mode === "crm") {
-        const tabId = getCtx().tabId;
+        const tabId = ctx.tabId;
         if (!tabId) {
-          document.body.innerHTML = "<div style='padding:20px'>tab_id is missing</div>";
+          document.body.innerHTML = "<div class='empty'>tab_id is missing</div>";
           return;
         }
 
-        // берём конкретный таб (лучше отдельным эндпоинтом, см. шаг 1.3 ниже)
-        const data = await api(`/api/tabs?entity_type_id=deal`);
-        const tab = (data.tabs || []).find(t => String(t.id) === String(tabId));
+        const data = await api(`/api/tabs/${encodeURIComponent(tabId)}`);
+        const tab = data.tab;
 
-        if (!tab || !tab.link) {
-          document.body.innerHTML = "<div style='padding:20px'>Ссылка не задана</div>";
+        if (!tab?.link) {
+          document.body.innerHTML = "<div class='empty'>Ссылка не задана</div>";
           return;
         }
 
-        // рисуем только iframe
+        // показываем только iframe
+        document.documentElement.style.height = "100%";
+        document.body.style.height = "100%";
+        document.body.style.margin = "0";
         document.body.innerHTML = "";
+
         const iframe = document.createElement("iframe");
         iframe.src = tab.link;
         iframe.style.width = "100%";
-        iframe.style.height = "100vh";
+        iframe.style.height = "100%";
         iframe.style.border = "0";
         document.body.appendChild(iframe);
         return;

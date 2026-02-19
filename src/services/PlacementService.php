@@ -42,6 +42,7 @@ class PlacementService
             'HANDLER'   => $handler,
             'TITLE'     => $title,
         ]);
+
         Logger::log("placement.bind raw", [
             "entity_type_id" => $entityTypeId,
             "tab_id" => $tabId,
@@ -49,14 +50,12 @@ class PlacementService
             "resp" => $resp,
         ]);
 
-        // BitrixApi у тебя возвращает ВЕСЬ ответ
-        $result = $resp['result'] ?? null;
+        // ✅ ВАЖНО: в Bitrix ID бинда обычно лежит прямо в result (число/строка)
+        if (!array_key_exists('result', $resp)) {
+            throw new RuntimeException("placement.bind: no result: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
+        }
 
-        if (is_array($result) && isset($result['ID'])) return (string)$result['ID'];
-        if (is_scalar($result)) return (string)$result;
-
-        throw new RuntimeException("placement.bind: unexpected response: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
-        throw new RuntimeException("placement.bind raw: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
+        return (string)$resp['result']; // ✅ вот ключевая строка
     }
 
     public static function unbind(array $portal, string $placementId): void

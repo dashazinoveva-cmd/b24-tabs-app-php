@@ -41,8 +41,30 @@ class TabsController
             ], JSON_UNESCAPED_UNICODE);
             exit;
         }
+        if ($id !== null) {
+            if ($method === 'GET')    { $this->getTab($id);    exit; }   // <-- ДОБАВИТЬ
+            if ($method === 'PATCH')  { $this->updateTab($id); exit; }
+            if ($method === 'DELETE') { $this->deleteTab($id); exit; }
+        }
     }
+    private function getTab(int $tabId): void
+    {
+        $portalId = $_GET['portal_id'] ?? 'LOCAL';
 
+        $pdo = Db::pdo();
+        $stmt = $pdo->prepare("SELECT * FROM tabs WHERE id = :id AND portal_id = :portal_id LIMIT 1");
+        $stmt->execute([':id' => $tabId, ':portal_id' => $portalId]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$row) {
+            http_response_code(404);
+            echo json_encode(['error' => 'Not found'], JSON_UNESCAPED_UNICODE);
+            return;
+        }
+
+        http_response_code(200);
+        echo json_encode(['tab' => $row], JSON_UNESCAPED_UNICODE);
+    }
     private function listTabs(): void
     {
         $portalId = $_GET['portal_id'] ?? 'LOCAL';
