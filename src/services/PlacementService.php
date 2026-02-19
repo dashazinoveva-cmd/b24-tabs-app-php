@@ -1,7 +1,3 @@
-<?php
-
-require_once __DIR__ . '/BitrixApi.php';
-
 class PlacementService
 {
     public static function placementName(string $entityTypeId): ?string
@@ -17,11 +13,12 @@ class PlacementService
 
     public static function buildHandlerUrl(array $portal, int $tabId): string
     {
+        // handler ДОЛЖЕН быть на домене приложения
         $appHost = $_SERVER['HTTP_HOST']; // dev.calendar.consult-info.ru
         return "https://{$appHost}/crm-tab?tab_id={$tabId}";
     }
 
-    // ✅ порядок аргументов как в TabsController: ($portal, $entityTypeId, $tabId, $title)
+    // ✅ единая сигнатура
     public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
     {
         $placement = self::placementName($entityTypeId);
@@ -31,14 +28,11 @@ class PlacementService
 
         $handler = self::buildHandlerUrl($portal, $tabId);
 
-        $data = BitrixApi::call($portal, 'placement.bind', [
+        $result = BitrixApi::call($portal, 'placement.bind', [
             'PLACEMENT' => $placement,
             'HANDLER'   => $handler,
             'TITLE'     => $title,
         ]);
-
-        // Bitrix обычно вернёт ['result' => <id>] или ['result'=>['ID'=>...]]
-        $result = $data['result'] ?? null;
 
         if (is_array($result) && isset($result['ID'])) return (string)$result['ID'];
         if (is_scalar($result)) return (string)$result;
@@ -46,8 +40,7 @@ class PlacementService
         throw new RuntimeException("placement.bind: unexpected response");
     }
 
-    // ✅ имя как ты используешь в контроллере
-    public static function unbindTab(array $portal, string $placementId): void
+    public static function unbind(array $portal, string $placementId): void
     {
         if ($placementId === '') return;
 
