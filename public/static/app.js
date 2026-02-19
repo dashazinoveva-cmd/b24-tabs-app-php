@@ -54,7 +54,9 @@ function withPortal(url) {
 
 async function api(url, options = {}) {
   const finalUrl = withPortal(url);
-  console.log("API CALL:", finalUrl);
+  const method = (options.method || "GET").toUpperCase();
+  console.log("API CALL:", method, finalUrl);
+
   const r = await fetch(finalUrl, options);
   if (!r.ok) throw new Error(await r.text());
   return r.json();
