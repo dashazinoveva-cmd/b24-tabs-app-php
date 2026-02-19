@@ -132,7 +132,7 @@ class TabsController
             throw new RuntimeException("Portal not found for member_id={$portalId}");
         }
 
-        $placementId = PlacementService::bindTab($portal, $entityTypeId, $id, $title);
+        $placementId = PlacementService::bindTab($portal, $id, $title, $entityTypeId);
 
         $upd = $pdo->prepare("UPDATE tabs SET placement_id = :pid WHERE id = :id AND portal_id = :portal_id");
         $upd->execute([':pid' => $placementId, ':id' => $id, ':portal_id' => $portalId]);
@@ -205,7 +205,7 @@ class TabsController
                 // 1) удалить старый placement
                 if ($oldPlacementId !== '') {
                     try {
-                        PlacementService::unbindTab($portal, $oldPlacementId);
+                        PlacementService::unbind($portal, $oldPlacementId);
                     } catch (Throwable $e) {}
                 }
 
@@ -213,9 +213,9 @@ class TabsController
                 $newTitle = trim((string)$body['title']);
                 $placementId = PlacementService::bindTab(
                     $portal,
-                    $tabRow['entity_type_id'],
                     $tabId,
-                    $newTitle
+                    $newTitle,
+                    $tabRow['entity_type_id']
                 );
 
                 // 3) сохранить новый placement_id
@@ -251,7 +251,7 @@ class TabsController
         if ($placementId !== '') {
             $portal = PortalRepository::findByMemberId($portalId);
             if ($portal) {
-                try { PlacementService::unbindTab($portal, $placementId); } catch(Throwable $e) {}
+                try { PlacementService::unbind($portal, $placementId); } catch(Throwable $e) {}
             }
         }
         $del = $pdo->prepare("DELETE FROM tabs WHERE id = :id AND portal_id = :portal_id");
