@@ -22,50 +22,43 @@ class Db
 
     private static function migrate(): void
     {
-        // 1) создаём таблицы, если их ещё нет
-        $sql = "
-        CREATE TABLE IF NOT EXISTS portals (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            member_id TEXT NOT NULL UNIQUE,
-            domain TEXT NOT NULL,
-            access_token TEXT NULL,
-            refresh_token TEXT NULL,
-            application_token TEXT NULL,
-            scope TEXT NULL,
-            user_id INTEGER NULL,
-            client_endpoint TEXT NULL,
-            server_endpoint TEXT NULL,
-            created_at TEXT NOT NULL DEFAULT (datetime('now')),
-            updated_at TEXT NOT NULL DEFAULT (datetime('now'))
-        );
+        // 1) базовые таблицы
+        self::$pdo->exec("
+            CREATE TABLE IF NOT EXISTS portals (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                member_id TEXT NOT NULL UNIQUE,
+                domain TEXT NULL,
+                access_token TEXT NULL,
+                refresh_token TEXT NULL,
+                application_token TEXT NULL,
+                scope TEXT NULL,
+                user_id INTEGER NULL,
+                client_endpoint TEXT NULL,
+                server_endpoint TEXT NULL,
+                created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+            );
 
-        CREATE TABLE IF NOT EXISTS tabs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            portal_id TEXT NOT NULL,
-            entity_type_id TEXT NOT NULL,
-            title TEXT NOT NULL,
-            link TEXT NOT NULL DEFAULT '',
-            order_index INTEGER NOT NULL DEFAULT 0,
-            placement_id TEXT NULL,
-            UNIQUE(portal_id, entity_type_id, title)
-        );
+            CREATE TABLE IF NOT EXISTS tabs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                portal_id TEXT NOT NULL,
+                entity_type_id TEXT NOT NULL,
+                title TEXT NOT NULL,
+                link TEXT NOT NULL DEFAULT '',
+                order_index INTEGER NOT NULL DEFAULT 0,
+                placement_id TEXT NULL,
+                UNIQUE(portal_id, entity_type_id, title)
+            );
 
-        CREATE INDEX IF NOT EXISTS ix_tabs_portal_entity ON tabs (portal_id, entity_type_id);
-        ";
-        self::$pdo->exec($sql);
+            CREATE INDEX IF NOT EXISTS ix_tabs_portal_entity ON tabs (portal_id, entity_type_id);
+        ");
 
-        // 2) если tabs уже существовала раньше — добавляем колонку placement_id через ALTER
-        //    (CREATE TABLE IF NOT EXISTS НЕ добавляет новые колонки)
+        // 2) если таблица tabs была создана раньше без placement_id — добавим колонку
         $cols = self::$pdo->query("PRAGMA table_info(tabs)")->fetchAll(PDO::FETCH_ASSOC);
         $hasPlacement = false;
-
         foreach ($cols as $c) {
-            if (($c['name'] ?? '') === 'placement_id') {
-                $hasPlacement = true;
-                break;
-            }
+            if (($c['name'] ?? '') === 'placement_id') { $hasPlacement = true; break; }
         }
-
         if (!$hasPlacement) {
             self::$pdo->exec("ALTER TABLE tabs ADD COLUMN placement_id TEXT NULL");
         }

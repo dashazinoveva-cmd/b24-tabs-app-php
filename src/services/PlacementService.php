@@ -15,29 +15,16 @@ class PlacementService
         };
     }
 
-    private static function appBaseUrl(): string
+    public static function buildHandlerUrl(array $portal, int $tabId): string
     {
-        $cfg = require __DIR__ . '/../config/app.php';
-        $url = (string)($cfg['app_url'] ?? '');
-        $url = rtrim($url, '/');
-
-        // fallback на текущий хост (если вдруг открылось локально)
-        if ($url === '') {
-            $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $url = $scheme . '://' . $host;
+        $appDomain = $portal['domain'] ?: ($_SERVER['HTTP_HOST'] ?? '');
+        if ($appDomain === '') {
+            throw new RuntimeException("Cannot build handler url: app domain empty");
         }
-        return $url;
+        return "https://{$appDomain}/crm-tab?tab_id={$tabId}";
     }
 
-    public static function buildHandlerUrl(int $tabId): string
-    {
-        // URL вкладки, которую откроет Битрикс во фрейме
-        return self::appBaseUrl() . "/crm-tab?tab_id=" . $tabId;
-    }
-
-    // ✅ Сигнатура теперь совпадает с твоим TabsController:
-    // bindTab($portal, $entityTypeId, $id, $title)
+    // ✅ порядок аргументов как в TabsController: ($portal, $entityTypeId, $tabId, $title)
     public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
     {
         $placement = self::placementName($entityTypeId);
@@ -45,21 +32,24 @@ class PlacementService
             throw new RuntimeException("Unsupported entity_type_id={$entityTypeId} for placement.bind");
         }
 
-        $handler = self::buildHandlerUrl($tabId);
+        $handler = self::buildHandlerUrl($portal, $tabId);
 
-        $result = BitrixApi::call($portal, 'placement.bind', [
+        $data = BitrixApi::call($portal, 'placement.bind', [
             'PLACEMENT' => $placement,
             'HANDLER'   => $handler,
             'TITLE'     => $title,
         ]);
 
-        // Bitrix обычно возвращает {result: ID} или {result: {ID: ...}} — подстрахуемся
+        // Bitrix обычно вернёт ['result' => <id>] или ['result'=>['ID'=>...]]
+        $result = $data['result'] ?? null;
+
         if (is_array($result) && isset($result['ID'])) return (string)$result['ID'];
         if (is_scalar($result)) return (string)$result;
 
         throw new RuntimeException("placement.bind: unexpected response");
     }
 
+    // ✅ имя как ты используешь в контроллере
     public static function unbindTab(array $portal, string $placementId): void
     {
         if ($placementId === '') return;
