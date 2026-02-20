@@ -37,8 +37,22 @@ class PlacementService
 
     public static function buildHandlerUrl(int $tabId): string
     {
-        $base = rtrim(self::getBaseUrl(), '/');
-        return $base . '/crm-tab?tab_id=' . $tabId;
+        $config = require __DIR__ . '/../config/app.php';
+        $raw = trim((string)($config['app_url'] ?? ''));
+
+        if ($raw === '') {
+            throw new RuntimeException("app_url is not set in config/app.php");
+        }
+
+        // ВАЖНО: берём только scheme+host(+port), отбрасываем /settings и любые пути
+        $u = parse_url($raw);
+        if (!is_array($u) || empty($u['scheme']) || empty($u['host'])) {
+            throw new RuntimeException("Invalid app_url: " . $raw);
+        }
+
+        $origin = $u['scheme'] . '://' . $u['host'] . (isset($u['port']) ? (':' . $u['port']) : '');
+
+        return $origin . '/crm-tab?tab_id=' . urlencode((string)$tabId);
     }
 
     public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string

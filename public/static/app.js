@@ -583,37 +583,36 @@ const btnDelete = document.getElementById("btnDelete");
 
 if (btnAdd) {
   btnAdd.onclick = async () => {
-    const title = await openTabNameModal("Название таба", "");
-    if (!title) return;
+    try {
+      const title = await openTabNameModal("Название таба", "");
+      if (!title) return;
 
-    const created = await api("/api/tabs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        entity_type_id: state.entityTypeId,
-        title: title.trim()
-      })
-    });
-    await loadTabs();
-    // ожидаем, что бэк вернёт { tab: {...} } или { id: ... } — подстрахуемся
-    const newId =
-      created?.tab?.id ??
-      created?.id ??
-      created?.tab_id ??
-      null;
+      const created = await api("/api/tabs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          entity_type_id: state.entityTypeId,
+          title: title.trim()
+        })
+      });
 
-    if (newId) {
-      setActiveTab(newId);
-      renderTabs();
-      renderEditor();
-    } else {
-      // если бэк не вернул id — хотя бы на последний таб (часто он новый)
-      const last = state.tabs[state.tabs.length - 1];
-      if (last?.id) {
-        setActiveTab(last.id);
+      await loadTabs();   // ← если тут падение, мы его увидим
+
+      const newId =
+        created?.tab?.id ??
+        created?.id ??
+        created?.tab_id ??
+        null;
+
+      if (newId) {
+        setActiveTab(newId);
         renderTabs();
         renderEditor();
       }
+
+    } catch (e) {
+      console.error("Ошибка создания таба:", e);
+      setStatus("Ошибка создания таба: " + (e?.message || e));
     }
   };
 }
