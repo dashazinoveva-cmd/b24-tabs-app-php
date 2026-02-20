@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/BitrixApi.php';
 require_once __DIR__ . '/Logger.php';
+
 class PlacementService
 {
     public static function placementName(string $entityTypeId): ?string
@@ -15,30 +16,31 @@ class PlacementService
         };
     }
 
-    private function getBaseUrl(): string
+    private static function getBaseUrl(): string
     {
-        // 1) схема (https почти всегда)
-        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        // Учитываем прокси (часто в проде HTTPS “снаружи”, но PHP видит HTTP)
+        $proto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? null;
+        $scheme = $proto
+            ? strtolower(trim(explode(',', $proto)[0]))
+            : ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http');
 
-        // 2) хост
-        $host = $_SERVER['HTTP_HOST'] ?? '';
+        // Хост тоже может приходить через прокси
+        $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? ($_SERVER['HTTP_HOST'] ?? '');
+        $host = trim(explode(',', $host)[0]);
 
-        // 3) если хоста нет (редко), fallback на APP_URL как было
         if (!$host) {
-            $base = rtrim($this->config['app_url'] ?? '', '/');
-            return $base;
+            throw new RuntimeException("Cannot build handler URL: host is empty");
         }
 
         return $scheme . '://' . $host;
     }
 
-    public function buildHandlerUrl(int $tabId): string
+    public static function buildHandlerUrl(int $tabId): string
     {
-        $base = rtrim($this->getBaseUrl(), '/');
+        $base = rtrim(self::getBaseUrl(), '/');
         return $base . '/crm-tab?tab_id=' . $tabId;
     }
 
-    // ✅ единая сигнатура: portal, entityTypeId, tabId, title
     public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
     {
         $placement = self::placementName($entityTypeId);
@@ -58,23 +60,20 @@ class PlacementService
             "entity_type_id" => $entityTypeId,
             "tab_id" => $tabId,
             "title" => $title,
+            "handler" => $handler,
             "resp" => $resp,
         ]);
 
-        // BitrixApi возвращает ВЕСЬ ответ, ID почти всегда в result
         $result = $resp['result'] ?? null;
 
-        // ✅ вариант 1: result = число (ID)
         if (is_int($result) || (is_string($result) && ctype_digit($result))) {
             return (string)$result;
         }
 
-        // ✅ вариант 2: result = массив с ID
         if (is_array($result) && isset($result['ID'])) {
             return (string)$result['ID'];
         }
 
-        // ❌ иначе — ошибка
         throw new RuntimeException("placement.bind: unexpected response: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
     }
 
