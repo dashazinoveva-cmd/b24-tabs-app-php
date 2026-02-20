@@ -15,16 +15,27 @@ class PlacementService
         };
     }
 
-    public static function buildHandlerUrl(int $tabId): string
+    private function getBaseUrl(): string
     {
-        $config = require __DIR__ . '/../config/app.php';
-        $base = rtrim((string)($config['app_url'] ?? ''), '/');
+        // 1) схема (https почти всегда)
+        $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
 
-        if ($base === '') {
-            throw new RuntimeException("app_url is not set in config/app.php");
+        // 2) хост
+        $host = $_SERVER['HTTP_HOST'] ?? '';
+
+        // 3) если хоста нет (редко), fallback на APP_URL как было
+        if (!$host) {
+            $base = rtrim($this->config['app_url'] ?? '', '/');
+            return $base;
         }
 
-        return $base . "/crm-tab?tab_id=" . urlencode((string)$tabId);
+        return $scheme . '://' . $host;
+    }
+
+    public function buildHandlerUrl(int $tabId): string
+    {
+        $base = rtrim($this->getBaseUrl(), '/');
+        return $base . '/crm-tab?tab_id=' . $tabId;
     }
 
     // ✅ единая сигнатура: portal, entityTypeId, tabId, title
