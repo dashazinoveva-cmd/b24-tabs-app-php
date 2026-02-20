@@ -682,6 +682,11 @@ function startApp() {
         iframe.style.border = "0";
         document.body.appendChild(iframe);
         return;
+
+        console.log("[CRM MODE] location.href =", window.location.href);
+        console.log("[CRM MODE] pathname =", window.location.pathname);
+        console.log("[CRM MODE] search =", window.location.search);
+        console.log("[CRM MODE] ctx =", getCtx());
       }
 
       // --- SETTINGS MODE (само приложение) ---

@@ -7,18 +7,41 @@
   <script src="//api.bitrix24.com/api/v1/"></script>
   <style>
     html,body{height:100%;margin:0}
+    #err{padding:16px;font-family:system-ui;color:#b00020;display:none}
     iframe{width:100%;height:100%;border:0}
-    .empty{padding:16px;font-family:system-ui}
   </style>
 </head>
 <body>
-  <div id="root"></div>
+  <div id="err"></div>
+  <iframe id="frame" src="about:blank"></iframe>
+
   <script>
-    window.APP_CONTEXT = {
-      mode: "crm",
-      tabId: new URLSearchParams(window.location.search).get("tab_id")
-    };
+    const errBox = document.getElementById('err');
+    const showErr = (m) => { errBox.style.display='block'; errBox.textContent = m; };
+
+    const tabId = new URLSearchParams(location.search).get("tab_id");
+    if (!tabId) showErr("tab_id не передан");
+
+    BX24.init(function() {
+      try {
+        const auth = BX24.getAuth();
+        const portalId = auth && (auth.member_id || auth.MEMBER_ID || auth.memberId);
+        if (!portalId) return showErr("Не удалось получить member_id из BX24.getAuth()");
+
+        fetch(`/api/tabs/${encodeURIComponent(tabId)}?portal_id=${encodeURIComponent(portalId)}`, {
+          credentials: 'include'
+        })
+          .then(r => r.ok ? r.json() : Promise.reject(new Error("API " + r.status)))
+          .then(data => {
+            const url = data && data.tab && data.tab.url;
+            if (!url) throw new Error("В ответе нет tab.url");
+            document.getElementById('frame').src = url;
+          })
+          .catch(e => showErr(e.message || String(e)));
+      } catch(e) {
+        showErr(e.message || String(e));
+      }
+    });
   </script>
-  <script src="/static/app.js?v=20260219"></script>
 </body>
 </html>

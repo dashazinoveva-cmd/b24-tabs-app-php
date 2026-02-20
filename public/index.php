@@ -57,6 +57,12 @@ if ($uri === '/settings') {
 // CRM TAB PAGE
 // --------------------
 if ($uri === '/crm-tab') {
+    Logger::log("CRM TAB OPEN", [
+        "request_uri" => $_SERVER['REQUEST_URI'] ?? null,
+        "query" => $_GET,
+        "referer" => $_SERVER['HTTP_REFERER'] ?? null,
+        "ua" => $_SERVER['HTTP_USER_AGENT'] ?? null,
+    ]);
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
     readfile(__DIR__ . '/static/crm_tab.html');
