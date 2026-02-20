@@ -24,7 +24,28 @@ class PortalService
 
         // 3) endpoints
         $serverEndpoint = (string)($payload['server_endpoint'] ?? $payload['SERVER_ENDPOINT'] ?? '');
+        // Если client_endpoint нет, но есть токен — попробуем получить через app.info
+        if ($clientEndpoint === '' && $accessToken !== '' && $serverEndpoint !== '') {
+            $url = rtrim($serverEndpoint, '/') . '/app.info.json';
 
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_POSTFIELDS => http_build_query(['auth' => $accessToken]),
+                CURLOPT_CONNECTTIMEOUT => 10,
+                CURLOPT_TIMEOUT => 20,
+            ]);
+
+            $raw = curl_exec($ch);
+            curl_close($ch);
+
+            $data = json_decode($raw, true);
+            if (isset($data['result']['client_endpoint'])) {
+                $clientEndpoint = $data['result']['client_endpoint'];
+                $domain = parse_url($clientEndpoint, PHP_URL_HOST) ?? '';
+            }
+        }
         // client_endpoint Bitrix иногда присылает, иногда нет.
         $clientEndpoint = (string)($payload['client_endpoint'] ?? $payload['CLIENT_ENDPOINT'] ?? '');
 

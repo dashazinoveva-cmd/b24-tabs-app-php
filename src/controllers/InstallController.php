@@ -9,16 +9,14 @@ class InstallController
     {
         header('Content-Type: text/html; charset=utf-8');
 
-        // Bitrix при проверках может слать HEAD — ответим 200
         if ($method === 'HEAD') {
             http_response_code(200);
             exit;
         }
 
-        // Для удобства: GET показывает страницу "install работает"
         if ($method === 'GET') {
             http_response_code(200);
-            echo "<b>/install работает</b><br><small>Жду POST от Bitrix24 при установке приложения.</small>";
+            echo "<b>/install работает</b>";
             exit;
         }
 
@@ -31,38 +29,25 @@ class InstallController
         $post = $_POST;
 
         try {
-            PortalService::upsertPortal($post);
-            Logger::log("Portal saved", [
-                'member_id' => $post['member_id'] ?? null,
-                'domain' => $post['domain'] ?? null,
+            PortalService::upsertPortal([
+                'member_id'      => $post['member_id'] ?? null,
+                'access_token'   => $post['AUTH_ID'] ?? null,
+                'refresh_token'  => $post['REFRESH_ID'] ?? null,
+                'expires_in'     => $post['AUTH_EXPIRES'] ?? 0,
+                'server_endpoint'=> $post['SERVER_ENDPOINT'] ?? null,
             ]);
+
+            Logger::log("INSTALL SUCCESS", [
+                'member_id' => $post['member_id'] ?? null,
+            ]);
+
         } catch (Throwable $e) {
-            Logger::log("Portal save error", [
+            Logger::log("INSTALL ERROR", [
                 'error' => $e->getMessage(),
                 'post_keys' => array_keys($post),
             ]);
-            // Можно вернуть 500, но лучше 200/302 чтобы установка не падала
         }
 
-        Logger::log("INSTALL POST received", [
-            'remote' => $_SERVER['REMOTE_ADDR'] ?? '',
-            'post' => $post,
-        ]);
-
-        try {
-            PortalService::upsertPortal($post);
-            Logger::log("Portal saved", [
-                'member_id' => $post['member_id'] ?? null,
-                'domain' => $post['domain'] ?? null,
-            ]);
-        } catch (Throwable $e) {
-            Logger::log("Portal save error", [
-                'error' => $e->getMessage(),
-                'post' => $post,
-            ]);
-        }
-
-        // ✅ После установки — редирект в настройки
         http_response_code(302);
         header('Location: /settings');
         exit;
