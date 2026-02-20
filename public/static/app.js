@@ -697,8 +697,7 @@ BX24.init(async function () {
   const portalId = auth?.member_id || "LOCAL";
 
   state.portalId = portalId;
-  window.APP_CONTEXT = window.APP_CONTEXT || {};
-  window.APP_CONTEXT.portalId = portalId;
+  window.APP_CONTEXT = { ...(window.APP_CONTEXT || {}), portalId };
 
   console.log("PORTAL_ID SET =", portalId);
 
