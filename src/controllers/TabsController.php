@@ -25,6 +25,7 @@ class TabsController
                 if ($method === 'POST') { $this->createTab(); exit; }
             } else {
                 // item: /api/tabs/{id}
+                if ($method === 'GET')    { $this->getTab($id);    exit; }
                 if ($method === 'PATCH')  { $this->updateTab($id); exit; }
                 if ($method === 'DELETE') { $this->deleteTab($id); exit; }
             }
@@ -52,8 +53,17 @@ class TabsController
         $portalId = $_GET['portal_id'] ?? 'LOCAL';
 
         $pdo = Db::pdo();
-        $stmt = $pdo->prepare("SELECT * FROM tabs WHERE id = :id AND portal_id = :portal_id LIMIT 1");
-        $stmt->execute([':id' => $tabId, ':portal_id' => $portalId]);
+        $stmt = $pdo->prepare("
+            SELECT id, portal_id, entity_type_id, title, link, order_index, placement_id
+            FROM tabs
+            WHERE id = :id AND portal_id = :portal_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            ':id' => $tabId,
+            ':portal_id' => $portalId,
+        ]);
+
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$row) {

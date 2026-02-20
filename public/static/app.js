@@ -1,8 +1,14 @@
 function getCtx() {
   const ctx = window.APP_CONTEXT || {};
+  const params = new URLSearchParams(window.location.search);
+
+  // если мы на странице /crm-tab — это CRM режим железно
+  const isCrmPath = window.location.pathname === "/crm-tab";
+
   return {
-    mode: ctx.mode || "settings", // <- ключевая строка
     ...ctx,
+    mode: ctx.mode || (isCrmPath ? "crm" : "settings"),
+    tabId: ctx.tabId || params.get("tab_id") || null,
   };
 }
 
@@ -648,11 +654,16 @@ function startApp() {
     try {
       const ctx = getCtx();
 
-      // --- CRM TAB MODE (вкладка в карточке) ---
       if (ctx.mode === "crm") {
         const tabId = ctx.tabId;
         if (!tabId) {
-          document.body.innerHTML = "<div class='empty'>tab_id is missing</div>";
+          document.body.innerHTML = "<div style='padding:20px'>tab_id is missing</div>";
+          return;
+        }
+
+        // ВАЖНО: в CRM режиме BX24 есть, но если страницу открыть напрямую — его не будет.
+        if (typeof BX24 === "undefined") {
+          document.body.innerHTML = "<div style='padding:20px'>Открой вкладку внутри Bitrix24 (BX24 недоступен вне портала)</div>";
           return;
         }
 
@@ -660,20 +671,15 @@ function startApp() {
         const tab = data.tab;
 
         if (!tab?.link) {
-          document.body.innerHTML = "<div class='empty'>Ссылка не задана</div>";
+          document.body.innerHTML = "<div style='padding:20px'>Ссылка не задана</div>";
           return;
         }
 
-        // показываем только iframe
-        document.documentElement.style.height = "100%";
-        document.body.style.height = "100%";
-        document.body.style.margin = "0";
         document.body.innerHTML = "";
-
         const iframe = document.createElement("iframe");
         iframe.src = tab.link;
         iframe.style.width = "100%";
-        iframe.style.height = "100%";
+        iframe.style.height = "100vh";
         iframe.style.border = "0";
         document.body.appendChild(iframe);
         return;
