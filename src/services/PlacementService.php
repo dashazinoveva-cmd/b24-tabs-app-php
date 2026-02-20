@@ -50,12 +50,21 @@ class PlacementService
             "resp" => $resp,
         ]);
 
-        // ✅ ВАЖНО: в Bitrix ID бинда обычно лежит прямо в result (число/строка)
-        if (!array_key_exists('result', $resp)) {
-            throw new RuntimeException("placement.bind: no result: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
+        // BitrixApi возвращает ВЕСЬ ответ, ID почти всегда в result
+        $result = $resp['result'] ?? null;
+
+        // ✅ вариант 1: result = число (ID)
+        if (is_int($result) || (is_string($result) && ctype_digit($result))) {
+            return (string)$result;
         }
 
-        return (string)$resp['result']; // ✅ вот ключевая строка
+        // ✅ вариант 2: result = массив с ID
+        if (is_array($result) && isset($result['ID'])) {
+            return (string)$result['ID'];
+        }
+
+        // ❌ иначе — ошибка
+        throw new RuntimeException("placement.bind: unexpected response: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
     }
 
     public static function unbind(array $portal, string $placementId): void
