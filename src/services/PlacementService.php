@@ -55,7 +55,7 @@ class PlacementService
         return $origin . '/crm-tab?tab_id=' . urlencode((string)$tabId);
     }
 
-    public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
+        public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
     {
         $placement = self::placementName($entityTypeId);
         if (!$placement) {
@@ -80,23 +80,26 @@ class PlacementService
 
         $result = $resp['result'] ?? null;
 
-        if (is_int($result) || (is_string($result) && ctype_digit($result))) {
-            return (string)$result;
+        // ✅ ВАЖНО: Bitrix возвращает true/false
+        if ($result === true) {
+            // вернём handler — его можно хранить и по нему же удалять
+            return $handler;
         }
 
-        if (is_array($result) && isset($result['ID'])) {
-            return (string)$result['ID'];
-        }
-
-        throw new RuntimeException("placement.bind: unexpected response: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
+        throw new RuntimeException("placement.bind failed: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
     }
 
-    public static function unbind(array $portal, string $placementId): void
+    public static function unbind(array $portal, string $entityTypeId, string $handlerOrEmpty): void
     {
-        if ($placementId === '') return;
+        $placement = self::placementName($entityTypeId);
+        if (!$placement) return;
 
-        BitrixApi::call($portal, 'placement.unbind', [
-            'ID' => $placementId,
-        ]);
+        // если handler пустой — можно удалить все хендлеры приложения в этом placement
+        $params = ['PLACEMENT' => $placement];
+        if ($handlerOrEmpty !== '') {
+            $params['HANDLER'] = $handlerOrEmpty;
+        }
+
+        BitrixApi::call($portal, 'placement.unbind', $params);
     }
 }
