@@ -1,18 +1,3 @@
-BX24.init(() => {
-  const auth = BX24.getAuth();
-
-  fetch("/api/portal/sync", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      member_id: auth.member_id,
-      access_token: auth.access_token,
-      refresh_token: auth.refresh_token,
-      domain: auth.domain,
-      client_endpoint: "https://" + auth.domain + "/rest/"
-    })
-  });
-});
 function getCtx() {
   const ctx = window.APP_CONTEXT || {};
   const params = new URLSearchParams(window.location.search);
@@ -739,7 +724,6 @@ BX24.init(async function () {
     if (domain) {
       payload.domain = domain;
       payload.client_endpoint = `https://${domain}/rest/`;
-      payload.server_endpoint = `https://${domain}/rest/`; // важно для BitrixApi
     }
     if (access) payload.access_token = access;
     if (refresh) payload.refresh_token = refresh;

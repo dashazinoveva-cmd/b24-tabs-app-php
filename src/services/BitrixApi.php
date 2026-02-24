@@ -18,10 +18,11 @@ class BitrixApi
         }
         if ($token === '') throw new RuntimeException("access_token is empty");
 
-        $base = rtrim($endpoint, "/");           // https://xxx.bitrix24.ru/rest
-        $url  = $base . "/" . $method . ".json"; // .../rest/crm.type.list.json
-
-        $payload = $params;
+        $base = rtrim($endpoint, "/");
+        if (!str_ends_with($base, "/rest")) {
+            $base .= "/rest";
+        }
+        $url = $base . "/" . $method . ".json";
         $payload['auth'] = $token;
 
         $ch = curl_init($url);
