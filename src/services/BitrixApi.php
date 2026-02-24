@@ -12,9 +12,10 @@ class BitrixApi
     private static function callWithRetry(array $portal, string $method, array $params, bool $allowRefresh): array
     {
         $token = (string)($portal['access_token'] ?? '');
-        $endpoint = (string)($portal['client_endpoint'] ?? $portal['server_endpoint'] ?? '');
-
-        if ($endpoint === '') throw new RuntimeException("client_endpoint/server_endpoint is empty");
+        $endpoint = (string)($portal['client_endpoint'] ?? '');
+        if ($endpoint === '') {
+            throw new RuntimeException("client_endpoint is empty (portal not synced)");
+        }
         if ($token === '') throw new RuntimeException("access_token is empty");
 
         $base = rtrim($endpoint, "/");           // https://xxx.bitrix24.ru/rest

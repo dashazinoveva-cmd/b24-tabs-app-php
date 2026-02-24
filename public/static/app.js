@@ -1,3 +1,18 @@
+BX24.init(() => {
+  const auth = BX24.getAuth();
+
+  fetch("/api/portal/sync", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      member_id: auth.member_id,
+      access_token: auth.access_token,
+      refresh_token: auth.refresh_token,
+      domain: auth.domain,
+      client_endpoint: "https://" + auth.domain + "/rest/"
+    })
+  });
+});
 function getCtx() {
   const ctx = window.APP_CONTEXT || {};
   const params = new URLSearchParams(window.location.search);
