@@ -1,19 +1,40 @@
 <?php
 
-class Db
+final class Db
 {
     private static ?PDO $pdo = null;
 
     public static function pdo(): PDO
     {
-        if (self::$pdo) return self::$pdo;
+        if (self::$pdo instanceof PDO) {
+            return self::$pdo;
+        }
 
-        $config = require __DIR__ . '/../config/app.php';
-        $dbPath = $config['db_path'];
+        $configPath = __DIR__ . '/../config/app.php';
+        if (!file_exists($configPath)) {
+            throw new RuntimeException("DB config not found: {$configPath}");
+        }
 
-        self::$pdo = new PDO('sqlite:' . $dbPath);
-        self::$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        self::$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+        $config = require $configPath;
+        $dbPath = $config['db_path'] ?? null;
+        if (!$dbPath || !is_string($dbPath)) {
+            throw new RuntimeException("db_path is not set in config/app.php");
+        }
+
+        // гарантируем, что папка для sqlite файла существует
+        $dir = dirname($dbPath);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0777, true);
+        }
+
+        self::$pdo = new PDO('sqlite:' . $dbPath, null, null, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]);
+
+        // на всякий — включаем внешние ключи (если понадобятся)
+        self::$pdo->exec("PRAGMA foreign_keys = ON");
 
         self::migrate();
 
@@ -22,7 +43,7 @@ class Db
 
     private static function migrate(): void
     {
-        // 1) базовые таблицы
+        // --- БАЗОВЫЕ ТАБЛИЦЫ (создаём, если нет) ---
         self::$pdo->exec("
             CREATE TABLE IF NOT EXISTS portals (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -38,7 +59,9 @@ class Db
                 created_at TEXT NOT NULL DEFAULT (datetime('now')),
                 updated_at TEXT NOT NULL DEFAULT (datetime('now'))
             );
+        ");
 
+        self::$pdo->exec("
             CREATE TABLE IF NOT EXISTS tabs (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 portal_id TEXT NOT NULL,
@@ -49,16 +72,25 @@ class Db
                 placement_id TEXT NULL,
                 UNIQUE(portal_id, entity_type_id, title)
             );
-
-            CREATE INDEX IF NOT EXISTS ix_tabs_portal_entity ON tabs (portal_id, entity_type_id);
         ");
-        // если domain был создан как NOT NULL — пересоздадим таблицу
-        $cols = self::$pdo->query("PRAGMA table_info(portals)")->fetchAll(PDO::FETCH_ASSOC);
-        foreach ($cols as $col) {
-            if ($col['name'] === 'domain' && $col['notnull'] == 1) {
 
+        self::$pdo->exec("CREATE INDEX IF NOT EXISTS ix_tabs_portal_entity ON tabs (portal_id, entity_type_id);");
+
+        // --- FIX 1: если portals.domain когда-то был NOT NULL — пересоберём корректно ---
+        $portalCols = self::$pdo->query("PRAGMA table_info(portals)")->fetchAll(PDO::FETCH_ASSOC) ?: [];
+        $domainWasNotNull = false;
+        foreach ($portalCols as $col) {
+            if (($col['name'] ?? '') === 'domain' && (int)($col['notnull'] ?? 0) === 1) {
+                $domainWasNotNull = true;
+                break;
+            }
+        }
+
+        if ($domainWasNotNull) {
+            self::$pdo->beginTransaction();
+            try {
                 self::$pdo->exec("
-                    CREATE TABLE portals_new (
+                    CREATE TABLE IF NOT EXISTS portals_new (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
                         member_id TEXT NOT NULL UNIQUE,
                         domain TEXT NULL,
@@ -74,25 +106,50 @@ class Db
                     );
                 ");
 
+                // ВАЖНО: копируем по именам колонок (а не SELECT *)
                 self::$pdo->exec("
-                    INSERT INTO portals_new
-                    SELECT * FROM portals;
+                    INSERT INTO portals_new (
+                        id, member_id, domain, access_token, refresh_token, application_token, scope,
+                        user_id, client_endpoint, server_endpoint, created_at, updated_at
+                    )
+                    SELECT
+                        id, member_id, domain, access_token, refresh_token, application_token, scope,
+                        user_id, client_endpoint, server_endpoint, created_at, updated_at
+                    FROM portals;
                 ");
 
                 self::$pdo->exec("DROP TABLE portals;");
                 self::$pdo->exec("ALTER TABLE portals_new RENAME TO portals;");
 
-                break;
+                self::$pdo->commit();
+            } catch (Throwable $e) {
+                self::$pdo->rollBack();
+                throw $e;
             }
         }
-        // 2) если таблица tabs была создана раньше без placement_id — добавим колонку
-        $cols = self::$pdo->query("PRAGMA table_info(tabs)")->fetchAll(PDO::FETCH_ASSOC);
+
+        // --- FIX 2: если tabs была старой версией без placement_id — добавим колонку ---
+        $tabsCols = self::$pdo->query("PRAGMA table_info(tabs)")->fetchAll(PDO::FETCH_ASSOC) ?: [];
         $hasPlacement = false;
-        foreach ($cols as $c) {
-            if (($c['name'] ?? '') === 'placement_id') { $hasPlacement = true; break; }
+        foreach ($tabsCols as $c) {
+            if (($c['name'] ?? '') === 'placement_id') {
+                $hasPlacement = true;
+                break;
+            }
         }
         if (!$hasPlacement) {
             self::$pdo->exec("ALTER TABLE tabs ADD COLUMN placement_id TEXT NULL");
         }
+
+        // --- (опционально) триггер на updated_at для portals ---
+        // если хочешь автообновление updated_at при update (SQLite не умеет ON UPDATE)
+        self::$pdo->exec("
+            CREATE TRIGGER IF NOT EXISTS trg_portals_updated_at
+            AFTER UPDATE ON portals
+            FOR EACH ROW
+            BEGIN
+                UPDATE portals SET updated_at = datetime('now') WHERE id = OLD.id;
+            END;
+        ");
     }
 }
