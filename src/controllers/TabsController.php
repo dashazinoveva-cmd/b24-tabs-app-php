@@ -108,73 +108,78 @@ class TabsController
     private function createTab(): void
     {
         $portalId = $_GET['portal_id'] ?? 'LOCAL';
-
         $body = $this->readJson();
+
         $entityTypeId = trim((string)($body['entity_type_id'] ?? ''));
         $title = trim((string)($body['title'] ?? ''));
 
         if ($entityTypeId === '' || $title === '') {
             http_response_code(400);
-            echo json_encode(['error' => 'entity_type_id and title are required'], JSON_UNESCAPED_UNICODE);
+            echo json_encode(['error' => 'entity_type_id and title are required']);
             return;
         }
 
         $pdo = Db::pdo();
-
-        // next order_index
-        $stmt = $pdo->prepare("
-            SELECT COALESCE(MAX(order_index), -1) AS max_order
-            FROM tabs
-            WHERE portal_id = :portal_id
-              AND entity_type_id = :entity_type_id
-        ");
-        $stmt->execute([
-            ':portal_id' => $portalId,
-            ':entity_type_id' => $entityTypeId,
-        ]);
-        $maxOrder = (int)($stmt->fetchColumn() ?? -1);
-        $nextOrder = $maxOrder + 1;
-
-        // insert
-        $ins = $pdo->prepare("
-            INSERT INTO tabs (portal_id, entity_type_id, title, link, order_index)
-            VALUES (:portal_id, :entity_type_id, :title, '', :order_index)
-        ");
+        $pdo->beginTransaction();
 
         try {
-            $ins->execute([
+
+            $stmt = $pdo->prepare("
+                INSERT INTO tabs (portal_id, entity_type_id, title, link, order_index)
+                VALUES (:portal_id, :entity_type_id, :title, '', 0)
+            ");
+
+            $stmt->execute([
                 ':portal_id' => $portalId,
                 ':entity_type_id' => $entityTypeId,
                 ':title' => $title,
-                ':order_index' => $nextOrder,
             ]);
-        } catch (PDOException $e) {
-            // уникальность title в рамках portal/entity
-            if (str_contains($e->getMessage(), 'UNIQUE')) {
-                http_response_code(409);
-                echo json_encode(['error' => 'Tab title already exists'], JSON_UNESCAPED_UNICODE);
-                return;
+
+            $id = (int)$pdo->lastInsertId();
+
+            $portal = PortalRepository::findByMemberId($portalId);
+            if (!$portal) {
+                throw new RuntimeException("Portal not found");
             }
-            throw $e;
-        }
 
-        $id = (int)$pdo->lastInsertId();
-        $portal = PortalRepository::findByMemberId($portalId);
-        if (!$portal) {
-            throw new RuntimeException("Portal not found for member_id={$portalId}");
-        }
+            $placementId = PlacementService::bindTab(
+                $portal,
+                (string)$entityTypeId,
+                $id,
+                (string)$title
+            );
 
-        $placementId = PlacementService::bindTab($portal, $entityTypeId, $id, $title);
+            $upd = $pdo->prepare("
+                UPDATE tabs
+                SET placement_id = :pid
+                WHERE id = :id AND portal_id = :portal_id
+            ");
 
-        $upd = $pdo->prepare("UPDATE tabs SET placement_id = :pid WHERE id = :id AND portal_id = :portal_id");
-        $upd->execute([':pid' => $placementId, ':id' => $id, ':portal_id' => $portalId]);
-        http_response_code(200);
-        echo json_encode([
-            'id' => $id,
-            'title' => $title,
-            'placement_id' => $placementId
-        ], JSON_UNESCAPED_UNICODE);
+            $upd->execute([
+                ':pid' => $placementId,
+                ':id' => $id,
+                ':portal_id' => $portalId
+            ]);
+
+            $pdo->commit();
+
+            http_response_code(200);
+            echo json_encode([
+                'id' => $id,
+                'placement_id' => $placementId
+            ]);
+
+        } catch (Throwable $e) {
+
+            $pdo->rollBack(); // ❗ если bind упал — таб НЕ сохранится
+
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Internal error',
+                'message' => $e->getMessage()
+            ]);
         }
+    }
 
     private function updateTab(int $tabId): void
     {
