@@ -70,9 +70,10 @@ class PlacementService
             "placement_type" => gettype($placement),
         ]);
         $resp = BitrixApi::call($portal, 'placement.bind', [
-            'PLACEMENT' => $placement,
-            'HANDLER'   => $handler,
-            'TITLE'     => $title,
+            'PLACEMENT' => (string)$placement,
+            'HANDLER'   => (string)$handler,
+            'TITLE'     => (string)$title,
+            'PLACEMENT_OPTIONS' => new stdClass(), // обязательно
         ]);
 
         Logger::log("placement.bind raw", [
