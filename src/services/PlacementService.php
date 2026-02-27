@@ -63,7 +63,12 @@ class PlacementService
         }
 
         $handler = self::buildHandlerUrl($tabId);
-
+        Logger::log("placement.debug", [
+            "entityTypeId_type" => gettype($entityTypeId),
+            "entityTypeId_value" => $entityTypeId,
+            "placement_value" => $placement,
+            "placement_type" => gettype($placement),
+        ]);
         $resp = BitrixApi::call($portal, 'placement.bind', [
             'PLACEMENT' => $placement,
             'HANDLER'   => $handler,
