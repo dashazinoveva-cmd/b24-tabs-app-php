@@ -52,7 +52,39 @@ class Db
 
             CREATE INDEX IF NOT EXISTS ix_tabs_portal_entity ON tabs (portal_id, entity_type_id);
         ");
+        // если domain был создан как NOT NULL — пересоздадим таблицу
+        $cols = self::$pdo->query("PRAGMA table_info(portals)")->fetchAll(PDO::FETCH_ASSOC);
+        foreach ($cols as $col) {
+            if ($col['name'] === 'domain' && $col['notnull'] == 1) {
 
+                self::$pdo->exec("
+                    CREATE TABLE portals_new (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        member_id TEXT NOT NULL UNIQUE,
+                        domain TEXT NULL,
+                        access_token TEXT NULL,
+                        refresh_token TEXT NULL,
+                        application_token TEXT NULL,
+                        scope TEXT NULL,
+                        user_id INTEGER NULL,
+                        client_endpoint TEXT NULL,
+                        server_endpoint TEXT NULL,
+                        created_at TEXT NOT NULL DEFAULT (datetime('now')),
+                        updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+                    );
+                ");
+
+                self::$pdo->exec("
+                    INSERT INTO portals_new
+                    SELECT * FROM portals;
+                ");
+
+                self::$pdo->exec("DROP TABLE portals;");
+                self::$pdo->exec("ALTER TABLE portals_new RENAME TO portals;");
+
+                break;
+            }
+        }
         // 2) если таблица tabs была создана раньше без placement_id — добавим колонку
         $cols = self::$pdo->query("PRAGMA table_info(tabs)")->fetchAll(PDO::FETCH_ASSOC);
         $hasPlacement = false;
