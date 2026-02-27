@@ -48,6 +48,10 @@ if (str_starts_with($uri, '/api/tabs')) {
 if ($uri === '/settings') {
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
+    Logger::log("SETTINGS OPEN", [
+        "request_uri" => $_SERVER['REQUEST_URI'] ?? null,
+        "referer" => $_SERVER['HTTP_REFERER'] ?? null,
+    ]);
     readfile(__DIR__ . '/static/settings.html');
     exit;
 }
