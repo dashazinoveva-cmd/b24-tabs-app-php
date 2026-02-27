@@ -26,25 +26,43 @@ class InstallController
             exit;
         }
 
-        $post = $_POST;
+        // 🔥 ВАЖНО — берём ВСЁ, а не только POST
+        $data = $_REQUEST;
+
+        // 🔥 Вычисляем domain
+        $domain = $data['DOMAIN'] ?? $data['domain'] ?? null;
+
+        if (!$domain) {
+            $referer = $_SERVER['HTTP_REFERER'] ?? '';
+            $host = parse_url($referer, PHP_URL_HOST);
+            if ($host) {
+                $domain = $host;
+            }
+        }
+
+        // если вообще ничего нет — временно, чтобы не падало
+        if (!$domain) {
+            $domain = 'unknown';
+        }
 
         try {
             PortalService::upsertPortal([
-                'member_id'      => $post['member_id'] ?? null,
-                'access_token'   => $post['AUTH_ID'] ?? null,
-                'refresh_token'  => $post['REFRESH_ID'] ?? null,
-                'expires_in'     => $post['AUTH_EXPIRES'] ?? 0,
-                'server_endpoint'=> $post['SERVER_ENDPOINT'] ?? null,
+                'member_id'      => $data['member_id'] ?? null,
+                'access_token'   => $data['AUTH_ID'] ?? null,
+                'refresh_token'  => $data['REFRESH_ID'] ?? null,
+                'server_endpoint'=> $data['SERVER_ENDPOINT'] ?? null,
+                'domain'         => $domain,
             ]);
 
             Logger::log("INSTALL SUCCESS", [
-                'member_id' => $post['member_id'] ?? null,
+                'member_id' => $data['member_id'] ?? null,
+                'domain'    => $domain,
             ]);
 
         } catch (Throwable $e) {
             Logger::log("INSTALL ERROR", [
                 'error' => $e->getMessage(),
-                'post_keys' => array_keys($post),
+                'data_keys' => array_keys($data),
             ]);
         }
 
