@@ -57,27 +57,92 @@ if ($uri === '/settings') {
 // CRM TAB PAGE
 // --------------------
 if ($uri === '/crm-tab') {
-    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
-    $host = $_SERVER['HTTP_HOST'] ?? 'unknown-host';
-    $fullUrl = $scheme . '://' . $host . ($_SERVER['REQUEST_URI'] ?? '');
+    require_once __DIR__ . '/../src/services/TabsService.php';
+    require_once __DIR__ . '/../src/services/Logger.php';
+
+    $tabId = (int)($_GET['tab_id'] ?? 0);
 
     Logger::log("CRM TAB OPEN", [
-        "full_url"   => $fullUrl,
-        "path"       => $uri,
-        "query"      => $_GET,
-        "query_raw"  => $_SERVER['QUERY_STRING'] ?? null,
-        "referer"    => $_SERVER['HTTP_REFERER'] ?? null,
-        "origin"     => $_SERVER['HTTP_ORIGIN'] ?? null,
-        "ua"         => $_SERVER['HTTP_USER_AGENT'] ?? null,
+        "tab_id" => $tabId,
+        "request_uri" => $_SERVER['REQUEST_URI'] ?? null,
+        "query" => $_GET,
+        "referer" => $_SERVER['HTTP_REFERER'] ?? null,
+        "ua" => $_SERVER['HTTP_USER_AGENT'] ?? null,
     ]);
 
+    if ($tabId <= 0) {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "tab_id is required";
+        exit;
+    }
+
+    $tab = TabsService::getTabById($tabId);
+
+    if (!$tab) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo "Tab not found: " . $tabId;
+        exit;
+    }
+
+    $link = trim((string)($tab['link'] ?? ''));
+
+    Logger::log("CRM TAB LINK RESOLVED", [
+        "tab_id" => $tabId,
+        "title" => $tab['title'] ?? null,
+        "link" => $link,
+    ]);
+
+    // Если ссылка пустая — покажем диагностическую страницу
+    if ($link === '') {
+        http_response_code(200);
+        header('Content-Type: text/html; charset=utf-8');
+        echo "<h3>Ссылка для этой вкладки не задана</h3><pre>" . htmlspecialchars(print_r($tab, true)) . "</pre>";
+        exit;
+    }
+
+    // Вариант 1 (самый простой): редирект
+    // Но иногда Bitrix iframe “не любит” редирект наружу.
+    // Поэтому делаем Variant 2: JS открывает ссылку.
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
 
-    // Если хочешь быстро увидеть, что реально открывается — можно временно выводить debug
-    // echo "<pre>".htmlspecialchars(json_encode($_GET, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE))."</pre>";
+    $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+    $safeTitle = htmlspecialchars((string)($tab['title'] ?? 'Ссылка'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
-    readfile(__DIR__ . '/static/crm_tab.html');
+    echo <<<HTML
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <title>{$safeTitle}</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+</head>
+<body style="font-family: Arial, sans-serif; padding: 16px;">
+  <h3 style="margin: 0 0 12px;">{$safeTitle}</h3>
+  <p style="margin: 0 0 12px;">Открываю ссылку…</p>
+  <p style="margin: 0 0 16px;"><a href="{$safeLink}" target="_blank" rel="noopener">Если не открылось — нажми сюда</a></p>
+
+  <script>
+    (function() {
+      var url = "{$safeLink}";
+      try {
+        // 1) Попробовать открыть в новой вкладке
+        var w = window.open(url, "_blank", "noopener");
+        if (!w) {
+          // 2) Если блокирует popup — просто показать ссылку (она уже есть)
+          console.warn("Popup blocked");
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+  </script>
+</body>
+</html>
+HTML;
+
     exit;
 }
 

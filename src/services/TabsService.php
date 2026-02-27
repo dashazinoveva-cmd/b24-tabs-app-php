@@ -24,7 +24,6 @@ class TabsService
 
         $rows = $stmt->fetchAll();
 
-        // 🔥 логируем, что реально лежит в БД
         Logger::log("TabsService.listTabs", [
             "portal_id" => $portalId,
             "entity_type_id" => $entityTypeId,
@@ -47,7 +46,6 @@ class TabsService
         ");
 
         $stmt->execute([':id' => $tabId]);
-
         $row = $stmt->fetch() ?: null;
 
         Logger::log("TabsService.getTabById", [
