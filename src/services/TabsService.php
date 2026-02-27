@@ -1,6 +1,7 @@
 <?php
 
 require_once __DIR__ . '/../db/Db.php';
+require_once __DIR__ . '/Logger.php';
 
 class TabsService
 {
@@ -9,7 +10,7 @@ class TabsService
         $pdo = Db::pdo();
 
         $stmt = $pdo->prepare("
-            SELECT id, title, link, order_index
+            SELECT id, portal_id, entity_type_id, title, link, order_index, placement_id
             FROM tabs
             WHERE portal_id = :portal_id
               AND entity_type_id = :entity_type_id
@@ -21,6 +22,39 @@ class TabsService
             ':entity_type_id' => $entityTypeId,
         ]);
 
-        return $stmt->fetchAll();
+        $rows = $stmt->fetchAll();
+
+        // 🔥 логируем, что реально лежит в БД
+        Logger::log("TabsService.listTabs", [
+            "portal_id" => $portalId,
+            "entity_type_id" => $entityTypeId,
+            "rows_count" => count($rows),
+            "rows" => $rows,
+        ]);
+
+        return $rows;
+    }
+
+    public static function getTabById(int $tabId): ?array
+    {
+        $pdo = Db::pdo();
+
+        $stmt = $pdo->prepare("
+            SELECT id, portal_id, entity_type_id, title, link, order_index, placement_id
+            FROM tabs
+            WHERE id = :id
+            LIMIT 1
+        ");
+
+        $stmt->execute([':id' => $tabId]);
+
+        $row = $stmt->fetch() ?: null;
+
+        Logger::log("TabsService.getTabById", [
+            "tab_id" => $tabId,
+            "row" => $row,
+        ]);
+
+        return $row;
     }
 }

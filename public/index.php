@@ -57,14 +57,26 @@ if ($uri === '/settings') {
 // CRM TAB PAGE
 // --------------------
 if ($uri === '/crm-tab') {
+    $scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host = $_SERVER['HTTP_HOST'] ?? 'unknown-host';
+    $fullUrl = $scheme . '://' . $host . ($_SERVER['REQUEST_URI'] ?? '');
+
     Logger::log("CRM TAB OPEN", [
-        "request_uri" => $_SERVER['REQUEST_URI'] ?? null,
-        "query" => $_GET,
-        "referer" => $_SERVER['HTTP_REFERER'] ?? null,
-        "ua" => $_SERVER['HTTP_USER_AGENT'] ?? null,
+        "full_url"   => $fullUrl,
+        "path"       => $uri,
+        "query"      => $_GET,
+        "query_raw"  => $_SERVER['QUERY_STRING'] ?? null,
+        "referer"    => $_SERVER['HTTP_REFERER'] ?? null,
+        "origin"     => $_SERVER['HTTP_ORIGIN'] ?? null,
+        "ua"         => $_SERVER['HTTP_USER_AGENT'] ?? null,
     ]);
+
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
+
+    // Если хочешь быстро увидеть, что реально открывается — можно временно выводить debug
+    // echo "<pre>".htmlspecialchars(json_encode($_GET, JSON_PRETTY_PRINT|JSON_UNESCAPED_UNICODE))."</pre>";
+
     readfile(__DIR__ . '/static/crm_tab.html');
     exit;
 }
