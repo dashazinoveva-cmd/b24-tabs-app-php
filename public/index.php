@@ -102,46 +102,28 @@ if ($uri === '/crm-tab') {
         exit;
     }
 
-    // Вариант 1 (самый простой): редирект
-    // Но иногда Bitrix iframe “не любит” редирект наружу.
-    // Поэтому делаем Variant 2: JS открывает ссылку.
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
 
     $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
-    $safeTitle = htmlspecialchars((string)($tab['title'] ?? 'Ссылка'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
     echo <<<HTML
-<!doctype html>
-<html lang="ru">
-<head>
-  <meta charset="utf-8">
-  <title>{$safeTitle}</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-</head>
-<body style="font-family: Arial, sans-serif; padding: 16px;">
-  <h3 style="margin: 0 0 12px;">{$safeTitle}</h3>
-  <p style="margin: 0 0 12px;">Открываю ссылку…</p>
-  <p style="margin: 0 0 16px;"><a href="{$safeLink}" target="_blank" rel="noopener">Если не открылось — нажми сюда</a></p>
-
-  <script>
-    (function() {
-      var url = "{$safeLink}";
-      try {
-        // 1) Попробовать открыть в новой вкладке
-        var w = window.open(url, "_blank", "noopener");
-        if (!w) {
-          // 2) Если блокирует popup — просто показать ссылку (она уже есть)
-          console.warn("Popup blocked");
-        }
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-  </script>
-</body>
-</html>
-HTML;
+    <!doctype html>
+    <html lang="ru">
+    <head>
+    <meta charset="utf-8">
+    <title>Preview</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <style>
+        html, body { height: 100%; margin: 0; padding: 0; }
+        iframe { width: 100%; height: 100%; border: 0; }
+    </style>
+    </head>
+    <body>
+    <iframe src="{$safeLink}"></iframe>
+    </body>
+    </html>
+    HTML;
 
     exit;
 }
