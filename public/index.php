@@ -105,6 +105,9 @@ if ($uri === '/crm-tab') {
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
 
+    // чтобы Bitrix мог встраивать твою страницу в iframe
+    header("Content-Security-Policy: frame-ancestors 'self' https://*.bitrix24.ru https://*.bitrix24.com https://*.bitrix24.site");
+
     $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
     echo <<<HTML
@@ -112,15 +115,15 @@ if ($uri === '/crm-tab') {
     <html lang="ru">
     <head>
     <meta charset="utf-8">
-    <title>Preview</title>
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Preview</title>
     <style>
         html, body { height: 100%; margin: 0; padding: 0; }
-        iframe { width: 100%; height: 100%; border: 0; }
+        iframe { width: 100%; height: 100%; border: 0; display: block; }
     </style>
     </head>
     <body>
-    <iframe src="{$safeLink}"></iframe>
+    <iframe src="{$safeLink}" referrerpolicy="no-referrer-when-downgrade"></iframe>
     </body>
     </html>
     HTML;
