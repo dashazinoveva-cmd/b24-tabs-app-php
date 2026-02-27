@@ -29,16 +29,20 @@ class BitrixApi
         $query = http_build_query($payload);
 
         if ($method === 'placement.bind' || $method === 'placement.unbind') {
-            // для placement используем GET
+
+            // 🔥 ВАЖНО — auth должен быть в query
             $url .= '?' . $query;
 
+            $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_HTTPGET => true,
                 CURLOPT_CONNECTTIMEOUT => 10,
                 CURLOPT_TIMEOUT => 20,
             ]);
+
         } else {
+
+            $ch = curl_init($url);
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_POST => true,
@@ -47,7 +51,6 @@ class BitrixApi
                 CURLOPT_TIMEOUT => 20,
             ]);
         }
-
         $raw = curl_exec($ch);
         $err = curl_error($ch);
         $http = (int)curl_getinfo($ch, CURLINFO_HTTP_CODE);
