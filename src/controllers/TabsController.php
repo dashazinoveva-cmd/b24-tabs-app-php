@@ -237,7 +237,11 @@ class TabsController
                 // 1) удалить старый placement
                 if ($oldPlacementId !== '') {
                     try {
-                        PlacementService::unbind($portal, $oldPlacementId);
+                        PlacementService::unbind(
+                            $portal,
+                            $tabRow['entity_type_id'],
+                            $oldPlacementId
+                        );
                     } catch (Throwable $e) {}
                 }
 
@@ -283,7 +287,13 @@ class TabsController
         if ($placementId !== '') {
             $portal = PortalRepository::findByMemberId($portalId);
             if ($portal) {
-                try { PlacementService::unbind($portal, $placementId); } catch(Throwable $e) {}
+                try { 
+                    PlacementService::unbind(
+                        $portal,
+                        $this->getEntityTypeIdByTab($tabId, $portalId),
+                        $placementId
+                    );
+                } catch(Throwable $e) {}
             }
         }
         $del = $pdo->prepare("DELETE FROM tabs WHERE id = :id AND portal_id = :portal_id");
@@ -322,5 +332,21 @@ class TabsController
         $raw = file_get_contents('php://input') ?: '';
         $data = json_decode($raw, true);
         return is_array($data) ? $data : [];
+    }
+    private function getEntityTypeIdByTab(int $tabId, string $portalId): string
+    {
+        $pdo = Db::pdo();
+        $stmt = $pdo->prepare("
+            SELECT entity_type_id
+            FROM tabs
+            WHERE id = :id AND portal_id = :portal_id
+            LIMIT 1
+        ");
+        $stmt->execute([
+            ':id' => $tabId,
+            ':portal_id' => $portalId,
+        ]);
+
+        return (string)$stmt->fetchColumn();
     }
 }
