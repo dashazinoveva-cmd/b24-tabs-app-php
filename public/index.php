@@ -60,7 +60,7 @@ if ($uri === '/settings') {
 // --------------------
 // CRM TAB PAGE
 // --------------------
-if ($uri === '/crm-tab') {
+if ($uri === '/crm-tab' || $uri === '/crm-tab/') {
     require_once __DIR__ . '/../src/services/TabsService.php';
     require_once __DIR__ . '/../src/services/Logger.php';
 
@@ -73,7 +73,6 @@ if ($uri === '/crm-tab') {
         "referer" => $_SERVER['HTTP_REFERER'] ?? null,
         "ua" => $_SERVER['HTTP_USER_AGENT'] ?? null,
     ]);
-
     if ($tabId <= 0) {
         http_response_code(400);
         header('Content-Type: text/plain; charset=utf-8');
@@ -248,13 +247,13 @@ if ($uri === '/api/debug/log') {
 // --------------------
 // DEFAULT
 // --------------------
-http_response_code(404);
-header('Content-Type: text/plain; charset=utf-8');
-echo "Not found";
-
 if ($uri === '/api/debug/migrate') {
     $pdo = Db::pdo();
     $pdo->exec("ALTER TABLE tabs ADD COLUMN placement_id TEXT");
     echo "OK";
     exit;
 }
+
+http_response_code(404);
+header('Content-Type: text/plain; charset=utf-8');
+echo "Not found";
