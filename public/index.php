@@ -97,11 +97,74 @@ if ($uri === '/crm-tab' || $uri === '/crm-tab/') {
         "link" => $link,
     ]);
 
-    // Если ссылка пустая — покажем диагностическую страницу
     if ($link === '') {
         http_response_code(200);
         header('Content-Type: text/html; charset=utf-8');
-        echo "<h3>Ссылка для этой вкладки не задана</h3><pre>" . htmlspecialchars(print_r($tab, true)) . "</pre>";
+
+        $safeTitle = htmlspecialchars((string)($tab['title'] ?? 'Вкладка'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+        echo <<<HTML
+    <!doctype html>
+    <html lang="ru">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{$safeTitle}</title>
+    <style>
+        html, body {
+        height: 100%;
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: #f6f8fb;
+        color: #2f3b52;
+        }
+        .wrap {
+        height: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 24px;
+        box-sizing: border-box;
+        }
+        .card {
+        max-width: 420px;
+        width: 100%;
+        background: #fff;
+        border: 1px solid #e6ebf0;
+        border-radius: 16px;
+        padding: 24px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+        text-align: center;
+        }
+        .icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+        }
+        .title {
+        font-size: 20px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        }
+        .text {
+        font-size: 14px;
+        line-height: 1.5;
+        color: #5f6b7a;
+        }
+    </style>
+    </head>
+    <body>
+    <div class="wrap">
+        <div class="card">
+        <div class="icon">🔗</div>
+        <div class="title">Для вкладки пока не задана ссылка</div>
+        <div class="text">
+            Открой приложение, выбери вкладку <b>{$safeTitle}</b> и добавь URL в настройках.
+        </div>
+        </div>
+    </div>
+    </body>
+    </html>
+    HTML;
         exit;
     }
 

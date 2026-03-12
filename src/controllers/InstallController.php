@@ -7,23 +7,27 @@ class InstallController
 {
     public function handle(string $method): void
     {
+        // Bitrix иногда делает HEAD
         if ($method === 'HEAD') {
             http_response_code(200);
             exit;
         }
 
+        // Если install открыли вручную в браузере
         if ($method === 'GET') {
-            http_response_code(302);
             header('Location: /settings');
             exit;
         }
 
+        // Install должен быть POST
         if ($method !== 'POST') {
             header('Content-Type: text/plain; charset=utf-8');
             http_response_code(405);
             echo 'Method not allowed';
             exit;
         }
+
+        header('Content-Type: text/plain; charset=utf-8');
 
         $data = $_REQUEST;
 
@@ -55,17 +59,18 @@ class InstallController
                 'domain'    => $domain,
             ]);
 
-            http_response_code(302);
-            header('Location: /settings');
+            // ВАЖНО: Bitrix ждёт просто OK
+            http_response_code(200);
+            echo 'OK';
             exit;
 
         } catch (Throwable $e) {
+
             Logger::log("INSTALL ERROR", [
                 'error' => $e->getMessage(),
                 'data_keys' => array_keys($data),
             ]);
 
-            header('Content-Type: text/plain; charset=utf-8');
             http_response_code(500);
             echo 'ERROR';
             exit;
