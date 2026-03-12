@@ -73,7 +73,9 @@ class PlacementService
             'PLACEMENT' => (string)$placement,
             'HANDLER'   => (string)$handler,
             'TITLE'     => (string)$title,
-            'PLACEMENT_OPTIONS' => new stdClass(), // обязательно
+            'PLACEMENT_OPTIONS' => [
+                'tab_id' => (string)$tabId,
+            ],
         ]);
 
         Logger::log("placement.bind raw", [
