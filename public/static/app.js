@@ -746,8 +746,6 @@ BX24.init(async function () {
     const tabIdFromPlacement =
       options.tab_id ||
       options.TAB_ID ||
-      options.id ||
-      options.ID ||
       null;
 
     if (
