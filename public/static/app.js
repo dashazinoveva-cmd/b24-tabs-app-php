@@ -1,14 +1,12 @@
 function getCtx() {
   const ctx = window.APP_CONTEXT || {};
   const params = new URLSearchParams(window.location.search);
-
-  // если мы на странице /crm-tab — это CRM режим железно
   const isCrmPath = window.location.pathname === "/crm-tab";
 
   return {
     ...ctx,
-    mode: ctx.mode || (isCrmPath ? "crm" : "settings"),
-    tabId: ctx.tabId || params.get("tab_id") || null,
+    mode: isCrmPath ? "crm" : "settings",
+    tabId: params.get("tab_id") || null,
   };
 }
 
@@ -734,34 +732,6 @@ BX24.init(async function () {
     console.log("PORTAL SYNC OK", await resp.json());
   } catch (e) {
     console.warn("PORTAL SYNC FAILED", e);
-  }
-  try {
-    const p = BX24.placement && BX24.placement.info ? BX24.placement.info() : null;
-
-    console.log("PLACEMENT INFO", p);
-
-    const placement = p?.placement;
-    const options = p?.options || {};
-
-    const tabIdFromPlacement =
-      options.tab_id ||
-      options.TAB_ID ||
-      null;
-
-    if (
-      placement === "CRM_DEAL_DETAIL_TAB" ||
-      placement === "CRM_CONTACT_DETAIL_TAB" ||
-      placement === "CRM_COMPANY_DETAIL_TAB" ||
-      placement === "CRM_LEAD_DETAIL_TAB"
-    ) {
-      window.APP_CONTEXT = {
-        ...(window.APP_CONTEXT || {}),
-        mode: "crm",
-        tabId: tabIdFromPlacement || new URLSearchParams(location.search).get("tab_id"),
-      };
-    }
-  } catch (e) {
-    console.warn("PLACEMENT INFO FAILED", e);
   }
 
   startApp();
