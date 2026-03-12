@@ -651,7 +651,47 @@ if (btnDelete) {
 function startApp() {
   return (async () => {
     try {
-      await loadEntities();
+      const ctx = getCtx();
+      console.log("CTX", { href: location.href, ctx });
+
+      if (ctx.mode === "crm") {
+        console.log("CRM MODE ON", { href: location.href, ctx });
+
+        const tabId = ctx.tabId || new URLSearchParams(location.search).get("tab_id");
+        if (!tabId) {
+          document.body.innerHTML = "<div style='padding:20px'>tab_id is missing</div>";
+          return;
+        }
+
+        document.body.innerHTML = "";
+        document.documentElement.style.height = "100%";
+        document.body.style.height = "100%";
+        document.body.style.margin = "0";
+
+        const data = await api(`/api/tabs/${encodeURIComponent(tabId)}`);
+        const link = data?.tab?.link || "";
+
+        if (!link) {
+          document.body.innerHTML = "<div style='padding:20px'>Ссылка не задана</div>";
+          return;
+        }
+
+        const iframe = document.createElement("iframe");
+        iframe.src = link;
+        iframe.style.width = "100%";
+        iframe.style.height = "100vh";
+        iframe.style.border = "0";
+        iframe.style.display = "block";
+        document.body.appendChild(iframe);
+
+        return;
+      }
+
+      if (ctx.mode === "settings") {
+        await loadEntities();
+        return;
+      }
+
     } catch (e) {
       console.error(e);
       if (elStatus) elStatus.textContent = "Ошибка загрузки";
@@ -695,5 +735,36 @@ BX24.init(async function () {
   } catch (e) {
     console.warn("PORTAL SYNC FAILED", e);
   }
+  try {
+    const p = BX24.placement && BX24.placement.info ? BX24.placement.info() : null;
+
+    console.log("PLACEMENT INFO", p);
+
+    const placement = p?.placement;
+    const options = p?.options || {};
+
+    const tabIdFromPlacement =
+      options.tab_id ||
+      options.TAB_ID ||
+      options.id ||
+      options.ID ||
+      null;
+
+    if (
+      placement === "CRM_DEAL_DETAIL_TAB" ||
+      placement === "CRM_CONTACT_DETAIL_TAB" ||
+      placement === "CRM_COMPANY_DETAIL_TAB" ||
+      placement === "CRM_LEAD_DETAIL_TAB"
+    ) {
+      window.APP_CONTEXT = {
+        ...(window.APP_CONTEXT || {}),
+        mode: "crm",
+        tabId: tabIdFromPlacement || new URLSearchParams(location.search).get("tab_id"),
+      };
+    }
+  } catch (e) {
+    console.warn("PLACEMENT INFO FAILED", e);
+  }
+
   startApp();
 });
