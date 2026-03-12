@@ -651,47 +651,7 @@ if (btnDelete) {
 function startApp() {
   return (async () => {
     try {
-      const ctx = getCtx();
-      console.log("CTX", { href: location.href, ctx });
-      if (ctx.mode === "crm") {
-        console.log("CRM MODE ON", { href: location.href, ctx });
-
-        const tabId = ctx.tabId || new URLSearchParams(location.search).get("tab_id");
-        if (!tabId) {
-          document.body.innerHTML = "<div style='padding:20px'>tab_id is missing</div>";
-          return;
-        }
-
-        // убираем всё UI (кнопки/инпуты)
-        document.body.innerHTML = "";
-        document.documentElement.style.height = "100%";
-        document.body.style.height = "100%";
-        document.body.style.margin = "0";
-
-        const data = await api(`/api/tabs/${encodeURIComponent(tabId)}`);
-        const link = data?.tab?.link || "";
-
-        if (!link) {
-          document.body.innerHTML = "<div style='padding:20px'>Ссылка не задана</div>";
-          return;
-        }
-
-        const iframe = document.createElement("iframe");
-        iframe.src = link;
-        iframe.style.width = "100%";
-        iframe.style.height = "100vh";
-        iframe.style.border = "0";
-        iframe.style.display = "block";
-        document.body.appendChild(iframe);
-
-        return;
-      }
-      // --- SETTINGS MODE (само приложение) ---
-      if (ctx.mode === "settings") {
-        await loadEntities();
-        return;
-      }
-
+      await loadEntities();
     } catch (e) {
       console.error(e);
       if (elStatus) elStatus.textContent = "Ошибка загрузки";
@@ -735,25 +695,5 @@ BX24.init(async function () {
   } catch (e) {
     console.warn("PORTAL SYNC FAILED", e);
   }
-    // ✅ если нас открыли как вкладку CRM (placement), принудительно переключаемся в crm mode
-  try {
-    const p = BX24.placement && BX24.placement.info ? BX24.placement.info() : null;
-
-    // p.placement обычно типа "CRM_DEAL_DETAIL_TAB"
-    // p.options должны содержать твои параметры, в идеале tab_id
-    const placement = p?.placement;
-    const tabIdFromPlacement = p?.options?.tab_id || p?.options?.TAB_ID || null;
-
-    if (placement === "CRM_DEAL_DETAIL_TAB") {
-      window.APP_CONTEXT = {
-        ...(window.APP_CONTEXT || {}),
-        mode: "crm",
-        tabId: tabIdFromPlacement || (new URLSearchParams(location.search).get("tab_id")),
-      };
-    }
-  } catch (e) {
-    console.warn("PLACEMENT INFO FAILED", e);
-  }
-
   startApp();
 });
