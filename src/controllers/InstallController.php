@@ -7,21 +7,19 @@ class InstallController
 {
     public function handle(string $method): void
     {
-        header('Content-Type: text/plain; charset=utf-8');
-
         if ($method === 'HEAD') {
             http_response_code(200);
-            echo 'OK';
             exit;
         }
 
         if ($method === 'GET') {
-            http_response_code(200);
-            echo 'OK';
+            http_response_code(302);
+            header('Location: /settings');
             exit;
         }
 
         if ($method !== 'POST') {
+            header('Content-Type: text/plain; charset=utf-8');
             http_response_code(405);
             echo 'Method not allowed';
             exit;
@@ -57,8 +55,8 @@ class InstallController
                 'domain'    => $domain,
             ]);
 
-            http_response_code(200);
-            echo 'OK';
+            http_response_code(302);
+            header('Location: /settings');
             exit;
 
         } catch (Throwable $e) {
@@ -67,6 +65,7 @@ class InstallController
                 'data_keys' => array_keys($data),
             ]);
 
+            header('Content-Type: text/plain; charset=utf-8');
             http_response_code(500);
             echo 'ERROR';
             exit;
