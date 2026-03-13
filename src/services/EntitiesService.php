@@ -34,14 +34,14 @@ class EntitiesService
         ]);
 
         foreach ($types as $t) {
-            $id = $t['id'] ?? null;
-            $title = $t['title'] ?? ('ID ' . $id);
+            $title = $t['title'] ?? 'Без названия';
+            $dynamicEntityTypeId = $t['entityTypeId'] ?? null;
 
             Logger::log("crm.type.list item", $t);
 
-            if ($id) {
+            if ($dynamicEntityTypeId) {
                 $entities[] = [
-                    "id" => "sp_" . $id,
+                    "id" => "sp_" . $dynamicEntityTypeId,
                     "name" => "Смарт-процесс: " . $title,
                 ];
             }

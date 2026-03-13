@@ -8,7 +8,8 @@ class PlacementService
     public static function placementName(string $entityTypeId): ?string
     {
         if (str_starts_with($entityTypeId, 'sp_')) {
-            return 'CRM_DYNAMIC_ITEM_DETAIL_TAB';
+            $dynamicEntityTypeId = (int)substr($entityTypeId, 3);
+            return 'CRM_DYNAMIC_' . $dynamicEntityTypeId . '_DETAIL_TAB';
         }
 
         return match ($entityTypeId) {
@@ -71,11 +72,6 @@ class PlacementService
         $placementOptions = [
             'tab_id' => (string)$tabId,
         ];
-
-        if (str_starts_with($entityTypeId, 'sp_')) {
-            $typeId = (int)substr($entityTypeId, 3);
-            $placementOptions['entityTypeId'] = $typeId;
-        }
 
         Logger::log("placement.debug", [
             "entityTypeId_type" => gettype($entityTypeId),
