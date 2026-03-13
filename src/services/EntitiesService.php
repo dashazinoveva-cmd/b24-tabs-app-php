@@ -2,6 +2,7 @@
 
 require_once __DIR__ . '/PortalRepository.php';
 require_once __DIR__ . '/BitrixApi.php';
+require_once __DIR__ . '/Logger.php';
 
 class EntitiesService
 {
@@ -23,17 +24,20 @@ class EntitiesService
             'order' => ['id' => 'asc'],
         ]);
 
+        Logger::log("crm.type.list raw", $resp);
+
         $types = $resp['result']['types'] ?? [];
 
+        Logger::log("crm.type.list parsed types", [
+            "count" => count($types),
+            "types" => $types,
+        ]);
+
         foreach ($types as $t) {
-            $isDynamic = $t['isDynamic'] ?? null;
-
-            if (!in_array($isDynamic, ['Y', '1', 1, true], true)) {
-                continue;
-            }
-
             $id = $t['id'] ?? null;
             $title = $t['title'] ?? ('ID ' . $id);
+
+            Logger::log("crm.type.list item", $t);
 
             if ($id) {
                 $entities[] = [
@@ -42,6 +46,8 @@ class EntitiesService
                 ];
             }
         }
+
+        Logger::log("entities final", $entities);
 
         return $entities;
     }
