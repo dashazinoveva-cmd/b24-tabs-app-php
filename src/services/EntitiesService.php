@@ -30,8 +30,10 @@ class EntitiesService
 
         foreach ($types as $t) {
             // isDynamic = Y у смартов
-            $isDynamic = (string)($t['isDynamic'] ?? 'N');
-            if ($isDynamic !== 'Y') continue;
+            $isDynamic = $t['isDynamic'] ?? null;
+            if (!in_array($isDynamic, ['Y', '1', 1, true], true)) {
+                continue;
+            }
 
             $id = $t['id'] ?? null;
             $title = $t['title'] ?? ('ID ' . $id);
