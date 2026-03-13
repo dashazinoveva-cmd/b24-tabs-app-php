@@ -171,14 +171,24 @@ class TabsController
 
         } catch (Throwable $e) {
 
-            $pdo->rollBack(); // ❗ если bind упал — таб НЕ сохранится
-
-            http_response_code(500);
-            echo json_encode([
-                'error' => 'Internal error',
-                'message' => $e->getMessage()
-            ]);
+        if ($pdo->inTransaction()) {
+            $pdo->rollBack();
         }
+
+        Logger::log("createTab ERROR", [
+            'portal_id' => $portalId,
+            'entity_type_id' => $entityTypeId,
+            'title' => $title,
+            'error' => $e->getMessage(),
+            'trace' => $e->getTraceAsString(),
+        ]);
+
+        http_response_code(500);
+        echo json_encode([
+            'error' => 'Internal error',
+            'message' => $e->getMessage()
+        ], JSON_UNESCAPED_UNICODE);
+    }
     }
 
     private function updateTab(int $tabId): void

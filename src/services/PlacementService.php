@@ -59,33 +59,34 @@ class PlacementService
         return $origin . '/crm-tab?tab_id=' . urlencode((string)$tabId);
     }
 
-        public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
-        {
-            $placement = self::placementName($entityTypeId);
-            if (!$placement) {
-                throw new RuntimeException("Unsupported entity_type_id={$entityTypeId} for placement.bind");
-            }
+    public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
+    {
+        $placement = self::placementName($entityTypeId);
+        if (!$placement) {
+            throw new RuntimeException("Unsupported entity_type_id={$entityTypeId} for placement.bind");
+        }
 
-            $handler = self::buildHandlerUrl($tabId);
+        $handler = self::buildHandlerUrl($tabId);
 
-            $placementOptions = [
-                'tab_id' => (string)$tabId,
-            ];
+        $placementOptions = [
+            'tab_id' => (string)$tabId,
+        ];
 
-            // если это смарт-процесс вида sp_8 → вытащим 8
-            if (str_starts_with($entityTypeId, 'sp_')) {
-                $typeId = (int)substr($entityTypeId, 3);
-                $placementOptions['entityTypeId'] = $typeId;
-            }
+        if (str_starts_with($entityTypeId, 'sp_')) {
+            $typeId = (int)substr($entityTypeId, 3);
+            $placementOptions['entityTypeId'] = $typeId;
+        }
 
-            Logger::log("placement.debug", [
-                "entityTypeId_type" => gettype($entityTypeId),
-                "entityTypeId_value" => $entityTypeId,
-                "placement_value" => $placement,
-                "placement_type" => gettype($placement),
-                "placement_options" => $placementOptions,
-            ]);
+        Logger::log("placement.debug", [
+            "entityTypeId_type" => gettype($entityTypeId),
+            "entityTypeId_value" => $entityTypeId,
+            "placement_value" => $placement,
+            "placement_type" => gettype($placement),
+            "placement_options" => $placementOptions,
+            "handler" => $handler,
+        ]);
 
+        try {
             $resp = BitrixApi::call($portal, 'placement.bind', [
                 'PLACEMENT' => (string)$placement,
                 'HANDLER'   => (string)$handler,
@@ -101,14 +102,28 @@ class PlacementService
                 "resp" => $resp,
             ]);
 
-            $result = $resp['result'] ?? null;
-
-            if ($result === true) {
-                return $handler;
-            }
-
-            throw new RuntimeException("placement.bind failed: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
+        } catch (Throwable $e) {
+            Logger::log("placement.bind exception", [
+                "entity_type_id" => $entityTypeId,
+                "tab_id" => $tabId,
+                "title" => $title,
+                "handler" => $handler,
+                "placement" => $placement,
+                "placement_options" => $placementOptions,
+                "error" => $e->getMessage(),
+                "trace" => $e->getTraceAsString(),
+            ]);
+            throw $e;
         }
+
+        $result = $resp['result'] ?? null;
+
+        if ($result === true) {
+            return $handler;
+        }
+
+        throw new RuntimeException("placement.bind failed: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
+    }
 
     public static function unbind(array $portal, string $entityTypeId, string $handlerOrEmpty): void
     {
