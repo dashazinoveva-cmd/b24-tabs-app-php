@@ -12,7 +12,6 @@ class EntitiesService
             throw new RuntimeException("Portal not found in DB for member_id={$portalId}");
         }
 
-        // База (стандартные сущности всегда есть)
         $entities = [
             ["id" => "deal",    "name" => "Сделки"],
             ["id" => "lead",    "name" => "Лиды"],
@@ -20,17 +19,15 @@ class EntitiesService
             ["id" => "company", "name" => "Компании"],
         ];
 
-        // Смарты (crm.type.list)
         $resp = BitrixApi::call($portal, 'crm.type.list', [
             'order' => ['id' => 'asc'],
         ]);
 
-        // В ответе обычно result.types
         $types = $resp['result']['types'] ?? [];
 
         foreach ($types as $t) {
-            // isDynamic = Y у смартов
             $isDynamic = $t['isDynamic'] ?? null;
+
             if (!in_array($isDynamic, ['Y', '1', 1, true], true)) {
                 continue;
             }
