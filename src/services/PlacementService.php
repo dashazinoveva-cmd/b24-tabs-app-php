@@ -7,6 +7,10 @@ class PlacementService
 {
     public static function placementName(string $entityTypeId): ?string
     {
+        if (str_starts_with($entityTypeId, 'sp_')) {
+            return 'CRM_DYNAMIC_ITEM_DETAIL_TAB';
+        }
+
         return match ($entityTypeId) {
             'deal'    => 'CRM_DEAL_DETAIL_TAB',
             'lead'    => 'CRM_LEAD_DETAIL_TAB',
@@ -56,53 +60,61 @@ class PlacementService
     }
 
         public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
-    {
-        $placement = self::placementName($entityTypeId);
-        if (!$placement) {
-            throw new RuntimeException("Unsupported entity_type_id={$entityTypeId} for placement.bind");
-        }
+        {
+            $placement = self::placementName($entityTypeId);
+            if (!$placement) {
+                throw new RuntimeException("Unsupported entity_type_id={$entityTypeId} for placement.bind");
+            }
 
-        $handler = self::buildHandlerUrl($tabId);
-        Logger::log("placement.debug", [
-            "entityTypeId_type" => gettype($entityTypeId),
-            "entityTypeId_value" => $entityTypeId,
-            "placement_value" => $placement,
-            "placement_type" => gettype($placement),
-        ]);
-        $resp = BitrixApi::call($portal, 'placement.bind', [
-            'PLACEMENT' => (string)$placement,
-            'HANDLER'   => (string)$handler,
-            'TITLE'     => (string)$title,
-            'PLACEMENT_OPTIONS' => [
+            $handler = self::buildHandlerUrl($tabId);
+
+            $placementOptions = [
                 'tab_id' => (string)$tabId,
-            ],
-        ]);
+            ];
 
-        Logger::log("placement.bind raw", [
-            "entity_type_id" => $entityTypeId,
-            "tab_id" => $tabId,
-            "title" => $title,
-            "handler" => $handler,
-            "resp" => $resp,
-        ]);
+            // если это смарт-процесс вида sp_8 → вытащим 8
+            if (str_starts_with($entityTypeId, 'sp_')) {
+                $typeId = (int)substr($entityTypeId, 3);
+                $placementOptions['entityTypeId'] = $typeId;
+            }
 
-        $result = $resp['result'] ?? null;
+            Logger::log("placement.debug", [
+                "entityTypeId_type" => gettype($entityTypeId),
+                "entityTypeId_value" => $entityTypeId,
+                "placement_value" => $placement,
+                "placement_type" => gettype($placement),
+                "placement_options" => $placementOptions,
+            ]);
 
-        // ✅ ВАЖНО: Bitrix возвращает true/false
-        if ($result === true) {
-            // вернём handler — его можно хранить и по нему же удалять
-            return $handler;
+            $resp = BitrixApi::call($portal, 'placement.bind', [
+                'PLACEMENT' => (string)$placement,
+                'HANDLER'   => (string)$handler,
+                'TITLE'     => (string)$title,
+                'PLACEMENT_OPTIONS' => $placementOptions,
+            ]);
+
+            Logger::log("placement.bind raw", [
+                "entity_type_id" => $entityTypeId,
+                "tab_id" => $tabId,
+                "title" => $title,
+                "handler" => $handler,
+                "resp" => $resp,
+            ]);
+
+            $result = $resp['result'] ?? null;
+
+            if ($result === true) {
+                return $handler;
+            }
+
+            throw new RuntimeException("placement.bind failed: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
         }
-
-        throw new RuntimeException("placement.bind failed: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
-    }
 
     public static function unbind(array $portal, string $entityTypeId, string $handlerOrEmpty): void
     {
         $placement = self::placementName($entityTypeId);
         if (!$placement) return;
 
-        // если handler пустой — можно удалить все хендлеры приложения в этом placement
         $params = ['PLACEMENT' => $placement];
         if ($handlerOrEmpty !== '') {
             $params['HANDLER'] = $handlerOrEmpty;
