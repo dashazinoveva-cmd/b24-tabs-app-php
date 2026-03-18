@@ -45,13 +45,11 @@ class PlacementService
             $origin .= ':' . $parsed['port'];
         }
 
-        $version = '2';
-
         if ($entityTypeId === 'menu') {
-            return $origin . '/menu-item?tab_id=' . urlencode((string)$tabId) . '&v=' . $version;
+            return $origin . '/menu-item?tab_id=' . urlencode((string)$tabId);
         }
 
-        return $origin . '/crm-tab?tab_id=' . urlencode((string)$tabId) . '&v=' . $version;
+        return $origin . '/crm-tab?tab_id=' . urlencode((string)$tabId);
     }
 
     public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string

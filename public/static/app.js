@@ -458,7 +458,24 @@ async function renderEditor() {
   const tab = state.tabs.find(t => t.id === state.activeTabId);
 
   if (!tab) {
-    if (elPreview) elPreview.textContent = "Выбери таб";
+    if (elPreview) {
+      if (state.entityTypeId === 'menu') {
+        elPreview.innerHTML = `
+          <div class="preview-placeholder">
+            <div class="preview-icon">📌</div>
+            <div class="preview-text">
+              Создай пункт меню<br>
+              <span class="preview-hint">
+                После создания нового пункта меню в Битрикс24 он может появиться не сразу.
+                Если пункт не отображается в левом меню, очисти кэш браузера и обнови страницу портала.
+              </span>
+            </div>
+          </div>
+        `;
+      } else {
+        elPreview.textContent = "Выбери таб";
+      }
+    }
     return;
   }
 
@@ -466,6 +483,17 @@ async function renderEditor() {
   clearLinkError();
 
   await renderPreview(tab.link);
+
+  if (state.entityTypeId === 'menu' && elPreview) {
+    const note = document.createElement('div');
+    note.className = 'preview-note';
+    note.style.marginTop = '12px';
+    note.innerHTML = `
+      После создания нового пункта меню в Битрикс24 он может появиться не сразу.
+      Если пункт не отображается в левом меню, очисти кэш браузера и обнови страницу портала.
+    `;
+    elPreview.appendChild(note);
+  }
 }
 
 async function renderPreview(url) {
@@ -595,15 +623,6 @@ if (btnAdd) {
       });
 
       await loadTabs();   // ← если тут падение, мы его увидим
-      if (state.entityTypeId === 'menu') {
-        setTimeout(() => {
-          if (window.BX24) {
-            BX24.reloadWindow();
-          } else {
-            location.reload();
-          }
-        }, 800);
-      }
 
       const newId =
         created?.tab?.id ??
