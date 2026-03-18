@@ -486,11 +486,10 @@ async function renderEditor() {
 
   if (state.entityTypeId === 'menu' && elPreview) {
     const note = document.createElement('div');
-    note.className = 'preview-note';
-    note.style.marginTop = '12px';
+    note.className = 'preview-hint-box';
     note.innerHTML = `
-      После создания нового пункта меню в Битрикс24 он может появиться не сразу.
-      Если пункт не отображается в левом меню, очисти кэш браузера и обнови страницу портала.
+      После создания нового пункта меню в Bitrix24 он может появиться не сразу.<br>
+      Если пункт не отображается в левом меню — очисти кэш браузера и обнови страницу портала.
     `;
     elPreview.appendChild(note);
   }
