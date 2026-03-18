@@ -1,7 +1,6 @@
 <?php
 
 require_once __DIR__ . '/../db/Db.php';
-require_once __DIR__ . '/Logger.php';
 
 class TabsService
 {
@@ -22,16 +21,7 @@ class TabsService
             ':entity_type_id' => $entityTypeId,
         ]);
 
-        $rows = $stmt->fetchAll();
-
-        Logger::log("TabsService.listTabs", [
-            "portal_id" => $portalId,
-            "entity_type_id" => $entityTypeId,
-            "rows_count" => count($rows),
-            "rows" => $rows,
-        ]);
-
-        return $rows;
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
     public static function getTabById(int $tabId): ?array
@@ -45,14 +35,12 @@ class TabsService
             LIMIT 1
         ");
 
-        $stmt->execute([':id' => $tabId]);
-        $row = $stmt->fetch() ?: null;
-
-        Logger::log("TabsService.getTabById", [
-            "tab_id" => $tabId,
-            "row" => $row,
+        $stmt->execute([
+            ':id' => $tabId,
         ]);
 
-        return $row;
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        return $row ?: null;
     }
 }

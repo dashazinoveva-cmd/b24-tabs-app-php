@@ -48,10 +48,6 @@ if (str_starts_with($uri, '/api/tabs')) {
 if ($uri === '/settings') {
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
-    Logger::log("SETTINGS OPEN", [
-        "request_uri" => $_SERVER['REQUEST_URI'] ?? null,
-        "referer" => $_SERVER['HTTP_REFERER'] ?? null,
-    ]);
     readfile(__DIR__ . '/static/settings.html');
     exit;
 }
@@ -197,6 +193,122 @@ if ($uri === '/crm-tab' || $uri === '/crm-tab/') {
     exit;
 }
 
+if ($uri === '/menu-item' || $uri === '/menu-item/') {
+    $tabId = (int)($_GET['tab_id'] ?? 0);
+
+    if ($tabId <= 0) {
+        http_response_code(400);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'tab_id is required';
+        exit;
+    }
+
+    $tab = TabsService::getTabById($tabId);
+
+    if (!$tab) {
+        http_response_code(404);
+        header('Content-Type: text/plain; charset=utf-8');
+        echo 'Menu item not found';
+        exit;
+    }
+
+    $link = trim((string)($tab['link'] ?? ''));
+    $safeTitle = htmlspecialchars((string)($tab['title'] ?? 'Пункт меню'), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+    if ($link === '') {
+        http_response_code(200);
+        header('Content-Type: text/html; charset=utf-8');
+
+        echo <<<HTML
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{$safeTitle}</title>
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f6f8fb;
+      color: #2f3b52;
+    }
+    .wrap {
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+      box-sizing: border-box;
+    }
+    .card {
+      max-width: 420px;
+      width: 100%;
+      background: #fff;
+      border: 1px solid #e6ebf0;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.06);
+      text-align: center;
+    }
+    .icon {
+      font-size: 32px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 8px;
+    }
+    .text {
+      font-size: 14px;
+      line-height: 1.5;
+      color: #5f6b7a;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="card">
+      <div class="icon">📌</div>
+      <div class="title">Для пункта меню пока не задана ссылка</div>
+      <div class="text">
+        Открой приложение, выбери пункт <b>{$safeTitle}</b> и добавь URL в настройках.
+      </div>
+    </div>
+  </div>
+</body>
+</html>
+HTML;
+        exit;
+    }
+
+    http_response_code(200);
+    header('Content-Type: text/html; charset=utf-8');
+    header("Content-Security-Policy: frame-ancestors 'self' https://*.bitrix24.ru https://*.bitrix24.com https://*.bitrix24.site");
+
+    $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+
+    echo <<<HTML
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{$safeTitle}</title>
+  <style>
+    html, body { height: 100%; margin: 0; padding: 0; }
+    iframe { width: 100%; height: 100%; border: 0; display: block; }
+  </style>
+</head>
+<body>
+  <iframe src="{$safeLink}" referrerpolicy="no-referrer-when-downgrade"></iframe>
+</body>
+</html>
+HTML;
+    exit;
+}
 
 // --------------------
 // API: ENTITIES (PRODUCTION)

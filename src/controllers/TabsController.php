@@ -3,6 +3,7 @@
 require_once __DIR__ . '/../db/Db.php';
 require_once __DIR__ . '/../services/PortalRepository.php';
 require_once __DIR__ . '/../services/PlacementService.php';
+require_once __DIR__ . '/../services/Logger.php';
 
 class TabsController
 {
@@ -10,7 +11,6 @@ class TabsController
     {
         header('Content-Type: application/json; charset=utf-8');
 
-        // Bitrix иногда шлёт HEAD-проверки
         if ($method === 'HEAD') {
             http_response_code(200);
             exit;
@@ -20,14 +20,30 @@ class TabsController
 
         try {
             if ($id === null) {
-                // collection: /api/tabs
-                if ($method === 'GET')  { $this->listTabs();  exit; }
-                if ($method === 'POST') { $this->createTab(); exit; }
+                if ($method === 'GET') {
+                    $this->listTabs();
+                    exit;
+                }
+
+                if ($method === 'POST') {
+                    $this->createTab();
+                    exit;
+                }
             } else {
-                // item: /api/tabs/{id}
-                if ($method === 'GET')    { $this->getTab($id);    exit; }
-                if ($method === 'PATCH')  { $this->updateTab($id); exit; }
-                if ($method === 'DELETE') { $this->deleteTab($id); exit; }
+                if ($method === 'GET') {
+                    $this->getTab($id);
+                    exit;
+                }
+
+                if ($method === 'PATCH') {
+                    $this->updateTab($id);
+                    exit;
+                }
+
+                if ($method === 'DELETE') {
+                    $this->deleteTab($id);
+                    exit;
+                }
             }
 
             http_response_code(405);
@@ -42,12 +58,8 @@ class TabsController
             ], JSON_UNESCAPED_UNICODE);
             exit;
         }
-        if ($id !== null) {
-            if ($method === 'GET')    { $this->getTab($id);    exit; }   // <-- ДОБАВИТЬ
-            if ($method === 'PATCH')  { $this->updateTab($id); exit; }
-            if ($method === 'DELETE') { $this->deleteTab($id); exit; }
-        }
     }
+
     private function getTab(int $tabId): void
     {
         $portalId = $_GET['portal_id'] ?? 'LOCAL';
@@ -75,6 +87,7 @@ class TabsController
         http_response_code(200);
         echo json_encode(['tab' => $row], JSON_UNESCAPED_UNICODE);
     }
+
     private function listTabs(): void
     {
         $portalId = $_GET['portal_id'] ?? 'LOCAL';
@@ -91,7 +104,7 @@ class TabsController
             SELECT id, title, link, order_index, placement_id
             FROM tabs
             WHERE portal_id = :portal_id
-            AND entity_type_id = :entity_type_id
+              AND entity_type_id = :entity_type_id
             ORDER BY order_index ASC, id ASC
         ");
         $stmt->execute([
@@ -99,7 +112,7 @@ class TabsController
             ':entity_type_id' => $entityTypeId,
         ]);
 
-        $rows = $stmt->fetchAll();
+        $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         http_response_code(200);
         echo json_encode(['tabs' => $rows], JSON_UNESCAPED_UNICODE);
@@ -115,7 +128,9 @@ class TabsController
 
         if ($entityTypeId === '' || $title === '') {
             http_response_code(400);
-            echo json_encode(['error' => 'entity_type_id and title are required']);
+            echo json_encode([
+                'error' => 'entity_type_id and title are required',
+            ], JSON_UNESCAPED_UNICODE);
             return;
         }
 
@@ -123,12 +138,10 @@ class TabsController
         $pdo->beginTransaction();
 
         try {
-
             $stmt = $pdo->prepare("
                 INSERT INTO tabs (portal_id, entity_type_id, title, link, order_index)
                 VALUES (:portal_id, :entity_type_id, :title, '', 0)
             ");
-
             $stmt->execute([
                 ':portal_id' => $portalId,
                 ':entity_type_id' => $entityTypeId,
@@ -139,14 +152,14 @@ class TabsController
 
             $portal = PortalRepository::findByMemberId($portalId);
             if (!$portal) {
-                throw new RuntimeException("Portal not found");
+                throw new RuntimeException('Portal not found');
             }
 
             $placementId = PlacementService::bindTab(
                 $portal,
-                (string)$entityTypeId,
+                $entityTypeId,
                 $id,
-                (string)$title
+                $title
             );
 
             $upd = $pdo->prepare("
@@ -154,11 +167,10 @@ class TabsController
                 SET placement_id = :pid
                 WHERE id = :id AND portal_id = :portal_id
             ");
-
             $upd->execute([
                 ':pid' => $placementId,
                 ':id' => $id,
-                ':portal_id' => $portalId
+                ':portal_id' => $portalId,
             ]);
 
             $pdo->commit();
@@ -166,53 +178,59 @@ class TabsController
             http_response_code(200);
             echo json_encode([
                 'id' => $id,
-                'placement_id' => $placementId
-            ]);
+                'placement_id' => $placementId,
+            ], JSON_UNESCAPED_UNICODE);
 
         } catch (Throwable $e) {
+            if ($pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
 
-        if ($pdo->inTransaction()) {
-            $pdo->rollBack();
+            Logger::log('createTab ERROR', [
+                'portal_id' => $portalId,
+                'entity_type_id' => $entityTypeId,
+                'title' => $title,
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+            ]);
+
+            http_response_code(500);
+            echo json_encode([
+                'error' => 'Internal error',
+                'message' => $e->getMessage(),
+            ], JSON_UNESCAPED_UNICODE);
         }
-
-        Logger::log("createTab ERROR", [
-            'portal_id' => $portalId,
-            'entity_type_id' => $entityTypeId,
-            'title' => $title,
-            'error' => $e->getMessage(),
-            'trace' => $e->getTraceAsString(),
-        ]);
-
-        http_response_code(500);
-        echo json_encode([
-            'error' => 'Internal error',
-            'message' => $e->getMessage()
-        ], JSON_UNESCAPED_UNICODE);
-    }
     }
 
     private function updateTab(int $tabId): void
     {
         $portalId = $_GET['portal_id'] ?? 'LOCAL';
         $body = $this->readJson();
+
         if (array_key_exists('title', $body) && trim((string)$body['title']) === '') {
             http_response_code(400);
             echo json_encode(['error' => 'title cannot be empty'], JSON_UNESCAPED_UNICODE);
             return;
         }
+
         $fields = [];
-        $params = [':id' => $tabId, ':portal_id' => $portalId];
+        $params = [
+            ':id' => $tabId,
+            ':portal_id' => $portalId,
+        ];
 
         if (array_key_exists('title', $body)) {
-            $fields[] = "title = :title";
+            $fields[] = 'title = :title';
             $params[':title'] = trim((string)$body['title']);
         }
+
         if (array_key_exists('link', $body)) {
-            $fields[] = "link = :link";
+            $fields[] = 'link = :link';
             $params[':link'] = (string)$body['link'];
         }
+
         if (array_key_exists('order_index', $body)) {
-            $fields[] = "order_index = :order_index";
+            $fields[] = 'order_index = :order_index';
             $params[':order_index'] = (int)$body['order_index'];
         }
 
@@ -224,8 +242,15 @@ class TabsController
 
         $pdo = Db::pdo();
 
-        $rowStmt = $pdo->prepare("SELECT * FROM tabs WHERE id = :id AND portal_id = :portal_id");
-        $rowStmt->execute([':id' => $tabId, ':portal_id' => $portalId]);
+        $rowStmt = $pdo->prepare("
+            SELECT *
+            FROM tabs
+            WHERE id = :id AND portal_id = :portal_id
+        ");
+        $rowStmt->execute([
+            ':id' => $tabId,
+            ':portal_id' => $portalId,
+        ]);
         $tabRow = $rowStmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$tabRow) {
@@ -234,14 +259,13 @@ class TabsController
             return;
         }
 
-        $sql = "UPDATE tabs SET " . implode(", ", $fields) . " WHERE id = :id AND portal_id = :portal_id";
+        $sql = 'UPDATE tabs SET ' . implode(', ', $fields) . ' WHERE id = :id AND portal_id = :portal_id';
         $upd = $pdo->prepare($sql);
 
         try {
             $upd->execute($params);
-            // если меняли title — нужно пересоздать placement
-            if (array_key_exists('title', $body)) {
 
+            if (array_key_exists('title', $body)) {
                 $portal = PortalRepository::findByMemberId($portalId);
                 if (!$portal) {
                     throw new RuntimeException("Portal not found for member_id={$portalId}");
@@ -249,7 +273,6 @@ class TabsController
 
                 $oldPlacementId = (string)($tabRow['placement_id'] ?? '');
 
-                // 1) удалить старый placement
                 if ($oldPlacementId !== '') {
                     try {
                         PlacementService::unbind(
@@ -257,10 +280,10 @@ class TabsController
                             $tabRow['entity_type_id'],
                             $oldPlacementId
                         );
-                    } catch (Throwable $e) {}
+                    } catch (Throwable $e) {
+                    }
                 }
 
-                // 2) создать новый
                 $newTitle = trim((string)$body['title']);
                 $placementId = PlacementService::bindTab(
                     $portal,
@@ -269,20 +292,25 @@ class TabsController
                     $newTitle
                 );
 
-                // 3) сохранить новый placement_id
-                $save = $pdo->prepare("UPDATE tabs SET placement_id = :pid WHERE id = :id AND portal_id = :portal_id");
+                $save = $pdo->prepare("
+                    UPDATE tabs
+                    SET placement_id = :pid
+                    WHERE id = :id AND portal_id = :portal_id
+                ");
                 $save->execute([
                     ':pid' => $placementId,
                     ':id' => $tabId,
-                    ':portal_id' => $portalId
+                    ':portal_id' => $portalId,
                 ]);
             }
+
         } catch (PDOException $e) {
             if (str_contains($e->getMessage(), 'UNIQUE')) {
                 http_response_code(409);
                 echo json_encode(['error' => 'Tab title already exists'], JSON_UNESCAPED_UNICODE);
                 return;
             }
+
             throw $e;
         }
 
@@ -291,28 +319,44 @@ class TabsController
     }
 
     private function deleteTab(int $tabId): void
-    {   
+    {
         $portalId = $_GET['portal_id'] ?? 'LOCAL';
 
         $pdo = Db::pdo();
-        $tab = $pdo->prepare("SELECT placement_id FROM tabs WHERE id=:id AND portal_id=:portal_id");
-        $tab->execute([':id'=>$tabId, ':portal_id'=>$portalId]);
+
+        $tab = $pdo->prepare("
+            SELECT placement_id
+            FROM tabs
+            WHERE id = :id AND portal_id = :portal_id
+        ");
+        $tab->execute([
+            ':id' => $tabId,
+            ':portal_id' => $portalId,
+        ]);
         $placementId = (string)($tab->fetchColumn() ?: '');
 
         if ($placementId !== '') {
             $portal = PortalRepository::findByMemberId($portalId);
             if ($portal) {
-                try { 
+                try {
                     PlacementService::unbind(
                         $portal,
                         $this->getEntityTypeIdByTab($tabId, $portalId),
                         $placementId
                     );
-                } catch(Throwable $e) {}
+                } catch (Throwable $e) {
+                }
             }
         }
-        $del = $pdo->prepare("DELETE FROM tabs WHERE id = :id AND portal_id = :portal_id");
-        $del->execute([':id' => $tabId, ':portal_id' => $portalId]);
+
+        $del = $pdo->prepare("
+            DELETE FROM tabs
+            WHERE id = :id AND portal_id = :portal_id
+        ");
+        $del->execute([
+            ':id' => $tabId,
+            ':portal_id' => $portalId,
+        ]);
 
         if ($del->rowCount() === 0) {
             http_response_code(404);
@@ -326,18 +370,23 @@ class TabsController
 
     private function extractId(string $uri): ?int
     {
-        // /api/tabs/123
         if (preg_match('~^/api/tabs/(\d+)$~', $uri, $m)) {
             return (int)$m[1];
         }
-        // /api/tabs
-        if ($uri === '/api/tabs') return null;
 
-        // Если вдруг пришло /api/tabs?.... (parse_url в index.php уже убирает query обычно,
-        // но если нет — подстрахуемся)
+        if ($uri === '/api/tabs') {
+            return null;
+        }
+
         $path = parse_url($uri, PHP_URL_PATH);
-        if ($path === '/api/tabs') return null;
-        if (preg_match('~^/api/tabs/(\d+)$~', $path, $m)) return (int)$m[1];
+
+        if ($path === '/api/tabs') {
+            return null;
+        }
+
+        if (preg_match('~^/api/tabs/(\d+)$~', (string)$path, $m)) {
+            return (int)$m[1];
+        }
 
         return null;
     }
@@ -346,8 +395,10 @@ class TabsController
     {
         $raw = file_get_contents('php://input') ?: '';
         $data = json_decode($raw, true);
+
         return is_array($data) ? $data : [];
     }
+
     private function getEntityTypeIdByTab(int $tabId, string $portalId): string
     {
         $pdo = Db::pdo();

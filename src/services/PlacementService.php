@@ -9,10 +9,15 @@ class PlacementService
     {
         if (str_starts_with($entityTypeId, 'sp_')) {
             $dynamicEntityTypeId = (int)substr($entityTypeId, 3);
+            if ($dynamicEntityTypeId <= 0) {
+                return null;
+            }
+
             return 'CRM_DYNAMIC_' . $dynamicEntityTypeId . '_DETAIL_TAB';
         }
 
         return match ($entityTypeId) {
+            'menu'    => 'LEFT_MENU',
             'deal'    => 'CRM_DEAL_DETAIL_TAB',
             'lead'    => 'CRM_LEAD_DETAIL_TAB',
             'contact' => 'CRM_CONTACT_DETAIL_TAB',
@@ -21,41 +26,28 @@ class PlacementService
         };
     }
 
-    private static function getBaseUrl(): string
-    {
-        // Учитываем прокси (часто в проде HTTPS “снаружи”, но PHP видит HTTP)
-        $proto = $_SERVER['HTTP_X_FORWARDED_PROTO'] ?? null;
-        $scheme = $proto
-            ? strtolower(trim(explode(',', $proto)[0]))
-            : ((!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http');
-
-        // Хост тоже может приходить через прокси
-        $host = $_SERVER['HTTP_X_FORWARDED_HOST'] ?? ($_SERVER['HTTP_HOST'] ?? '');
-        $host = trim(explode(',', $host)[0]);
-
-        if (!$host) {
-            throw new RuntimeException("Cannot build handler URL: host is empty");
-        }
-
-        return $scheme . '://' . $host;
-    }
-
-    public static function buildHandlerUrl(int $tabId): string
+    public static function buildHandlerUrl(int $tabId, string $entityTypeId): string
     {
         $config = require __DIR__ . '/../config/app.php';
         $raw = trim((string)($config['app_url'] ?? ''));
 
         if ($raw === '') {
-            throw new RuntimeException("app_url is not set in config/app.php");
+            throw new RuntimeException('app_url is not set in config/app.php');
         }
 
-        // ВАЖНО: берём только scheme+host(+port), отбрасываем /settings и любые пути
-        $u = parse_url($raw);
-        if (!is_array($u) || empty($u['scheme']) || empty($u['host'])) {
-            throw new RuntimeException("Invalid app_url: " . $raw);
+        $parsed = parse_url($raw);
+        if (!is_array($parsed) || empty($parsed['scheme']) || empty($parsed['host'])) {
+            throw new RuntimeException('Invalid app_url: ' . $raw);
         }
 
-        $origin = $u['scheme'] . '://' . $u['host'] . (isset($u['port']) ? (':' . $u['port']) : '');
+        $origin = $parsed['scheme'] . '://' . $parsed['host'];
+        if (isset($parsed['port'])) {
+            $origin .= ':' . $parsed['port'];
+        }
+
+        if ($entityTypeId === 'menu') {
+            return $origin . '/menu-item?tab_id=' . urlencode((string)$tabId);
+        }
 
         return $origin . '/crm-tab?tab_id=' . urlencode((string)$tabId);
     }
@@ -63,70 +55,53 @@ class PlacementService
     public static function bindTab(array $portal, string $entityTypeId, int $tabId, string $title): string
     {
         $placement = self::placementName($entityTypeId);
-        if (!$placement) {
+        if ($placement === null) {
             throw new RuntimeException("Unsupported entity_type_id={$entityTypeId} for placement.bind");
         }
 
-        $handler = self::buildHandlerUrl($tabId);
-
-        $placementOptions = [
-            'tab_id' => (string)$tabId,
-        ];
-
-        Logger::log("placement.debug", [
-            "entityTypeId_type" => gettype($entityTypeId),
-            "entityTypeId_value" => $entityTypeId,
-            "placement_value" => $placement,
-            "placement_type" => gettype($placement),
-            "placement_options" => $placementOptions,
-            "handler" => $handler,
-        ]);
+        $handler = self::buildHandlerUrl($tabId, $entityTypeId);
 
         try {
             $resp = BitrixApi::call($portal, 'placement.bind', [
-                'PLACEMENT' => (string)$placement,
-                'HANDLER'   => (string)$handler,
-                'TITLE'     => (string)$title,
-                'PLACEMENT_OPTIONS' => $placementOptions,
+                'PLACEMENT' => $placement,
+                'HANDLER' => $handler,
+                'TITLE' => $title,
+                'PLACEMENT_OPTIONS' => [
+                    'tab_id' => (string)$tabId,
+                ],
             ]);
-
-            Logger::log("placement.bind raw", [
-                "entity_type_id" => $entityTypeId,
-                "tab_id" => $tabId,
-                "title" => $title,
-                "handler" => $handler,
-                "resp" => $resp,
-            ]);
-
         } catch (Throwable $e) {
-            Logger::log("placement.bind exception", [
-                "entity_type_id" => $entityTypeId,
-                "tab_id" => $tabId,
-                "title" => $title,
-                "handler" => $handler,
-                "placement" => $placement,
-                "placement_options" => $placementOptions,
-                "error" => $e->getMessage(),
-                "trace" => $e->getTraceAsString(),
+            Logger::log('PLACEMENT BIND ERROR', [
+                'entity_type_id' => $entityTypeId,
+                'tab_id' => $tabId,
+                'title' => $title,
+                'placement' => $placement,
+                'handler' => $handler,
+                'error' => $e->getMessage(),
             ]);
             throw $e;
         }
 
-        $result = $resp['result'] ?? null;
-
-        if ($result === true) {
+        if (($resp['result'] ?? null) === true) {
             return $handler;
         }
 
-        throw new RuntimeException("placement.bind failed: " . json_encode($resp, JSON_UNESCAPED_UNICODE));
+        throw new RuntimeException(
+            'placement.bind failed: ' . json_encode($resp, JSON_UNESCAPED_UNICODE)
+        );
     }
 
     public static function unbind(array $portal, string $entityTypeId, string $handlerOrEmpty): void
     {
         $placement = self::placementName($entityTypeId);
-        if (!$placement) return;
+        if ($placement === null) {
+            return;
+        }
 
-        $params = ['PLACEMENT' => $placement];
+        $params = [
+            'PLACEMENT' => $placement,
+        ];
+
         if ($handlerOrEmpty !== '') {
             $params['HANDLER'] = $handlerOrEmpty;
         }
