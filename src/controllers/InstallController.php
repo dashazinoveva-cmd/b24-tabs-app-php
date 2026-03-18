@@ -1,5 +1,5 @@
 <?php
-
+require_once __DIR__ . '/../services/BitrixApi.php';
 require_once __DIR__ . '/../services/PortalService.php';
 require_once __DIR__ . '/../services/Logger.php';
 
@@ -52,6 +52,15 @@ class InstallController
                 'refresh_token'   => $data['REFRESH_ID'] ?? null,
                 'server_endpoint' => $data['SERVER_ENDPOINT'] ?? null,
                 'domain'          => $domain,
+            ]);
+            $portal = \PortalRepository::findByMemberId($data['member_id'] ?? '');
+
+            $appUrl = rtrim((require __DIR__ . '/../config/app.php')['app_url'], '/');
+
+            \BitrixApi::call($portal, 'placement.bind', [
+                'PLACEMENT' => 'LEFT_MENU',
+                'HANDLER'   => $appUrl . '/settings',
+                'TITLE'     => 'Настройки табов',
             ]);
 
             Logger::log("INSTALL SUCCESS", [
