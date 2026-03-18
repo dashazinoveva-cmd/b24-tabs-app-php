@@ -161,6 +161,13 @@ class TabsController
                 $id,
                 $title
             );
+            Logger::log('TAB CREATED + BIND RESULT', [
+                'portal_id' => $portalId,
+                'entity_type_id' => $entityTypeId,
+                'tab_id' => $id,
+                'title' => $title,
+                'placement_id' => $placementId,
+            ]);
 
             $upd = $pdo->prepare("
                 UPDATE tabs

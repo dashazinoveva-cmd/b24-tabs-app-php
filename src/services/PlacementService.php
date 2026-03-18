@@ -70,6 +70,14 @@ class PlacementService
                     'tab_id' => (string)$tabId,
                 ],
             ]);
+            Logger::log('PLACEMENT BIND OK', [
+                'entity_type_id' => $entityTypeId,
+                'tab_id' => $tabId,
+                'title' => $title,
+                'placement' => $placement,
+                'handler' => $handler,
+                'resp' => $resp,
+            ]);
         } catch (Throwable $e) {
             Logger::log('PLACEMENT BIND ERROR', [
                 'entity_type_id' => $entityTypeId,
