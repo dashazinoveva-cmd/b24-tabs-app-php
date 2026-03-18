@@ -484,6 +484,12 @@ async function renderEditor() {
 
   await renderPreview(tab.link);
 
+  const hint = document.getElementById('menuCacheHint');
+
+  if (hint) {
+    hint.style.display = state.entityTypeId === 'menu' ? 'block' : 'none';
+  }
+
 }
 
 async function renderPreview(url) {
