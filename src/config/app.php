@@ -1,11 +1,7 @@
 <?php
 
 return [
-    'db_host' => getenv('DB_HOST') ?: '127.0.0.1',
-    'db_port' => getenv('DB_PORT') ?: '5432',
-    'db_name' => getenv('DB_NAME') ?: 'b24_tabs',
-    'db_user' => getenv('DB_USER') ?: 'b24_tabs_user',
-    'db_pass' => getenv('DB_PASS') ?: '',
+    'db_path' => __DIR__ . '/../../storage/app.db',
 
     'log_path' => __DIR__ . '/../../storage/app.log',
 
