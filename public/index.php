@@ -48,6 +48,9 @@ if (str_starts_with($uri, '/api/tabs')) {
 if ($uri === '/settings') {
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     readfile(__DIR__ . '/static/settings.html');
     exit;
 }
@@ -72,6 +75,9 @@ if ($uri === '/crm-tab' || $uri === '/crm-tab/') {
     if ($tabId <= 0) {
         http_response_code(400);
         header('Content-Type: text/plain; charset=utf-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         echo "tab_id is required";
         exit;
     }
@@ -81,6 +87,9 @@ if ($uri === '/crm-tab' || $uri === '/crm-tab/') {
     if (!$tab) {
         http_response_code(404);
         header('Content-Type: text/plain; charset=utf-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
         echo "Tab not found: " . $tabId;
         exit;
     }
@@ -218,6 +227,9 @@ if ($uri === '/menu-item' || $uri === '/menu-item/') {
     if ($link === '') {
         http_response_code(200);
         header('Content-Type: text/html; charset=utf-8');
+        header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+        header('Pragma: no-cache');
+        header('Expires: 0');
 
         echo <<<HTML
 <!doctype html>
@@ -286,6 +298,9 @@ HTML;
 
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
+    header('Cache-Control: no-store, no-cache, must-revalidate, max-age=0');
+    header('Pragma: no-cache');
+    header('Expires: 0');
     header("Content-Security-Policy: frame-ancestors 'self' https://*.bitrix24.ru https://*.bitrix24.com https://*.bitrix24.site");
 
     $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
