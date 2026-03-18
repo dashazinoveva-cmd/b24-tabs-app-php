@@ -595,6 +595,15 @@ if (btnAdd) {
       });
 
       await loadTabs();   // ← если тут падение, мы его увидим
+      if (state.entityTypeId === 'menu') {
+        setTimeout(() => {
+          if (window.BX24) {
+            BX24.reloadWindow();
+          } else {
+            location.reload();
+          }
+        }, 800);
+      }
 
       const newId =
         created?.tab?.id ??
