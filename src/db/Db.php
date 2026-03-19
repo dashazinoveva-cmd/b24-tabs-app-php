@@ -16,8 +16,25 @@ final class Db
         }
 
         $config = require $configPath;
-        $dbPath = $config['db_path'] ?? null;
+        $driver = (string)($config['db_driver'] ?? 'sqlite');
 
+        if ($driver === 'sqlite') {
+            self::$pdo = self::connectSqlite($config);
+            self::migrateSqlite();
+            return self::$pdo;
+        }
+
+        if ($driver === 'pgsql') {
+            self::$pdo = self::connectPostgres($config);
+            return self::$pdo;
+        }
+
+        throw new RuntimeException("Unsupported db_driver: {$driver}");
+    }
+
+    private static function connectSqlite(array $config): PDO
+    {
+        $dbPath = $config['db_path'] ?? null;
         if (!$dbPath || !is_string($dbPath)) {
             throw new RuntimeException('db_path is not set in config/app.php');
         }
@@ -27,20 +44,44 @@ final class Db
             @mkdir($dir, 0777, true);
         }
 
-        self::$pdo = new PDO('sqlite:' . $dbPath, null, null, [
+        $pdo = new PDO('sqlite:' . $dbPath, null, null, [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
             PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             PDO::ATTR_EMULATE_PREPARES => false,
         ]);
 
-        self::$pdo->exec('PRAGMA foreign_keys = ON');
+        $pdo->exec('PRAGMA foreign_keys = ON');
 
-        self::migrate();
-
-        return self::$pdo;
+        return $pdo;
     }
 
-    private static function migrate(): void
+    private static function connectPostgres(array $config): PDO
+    {
+        $host = $config['db_host'] ?? null;
+        $port = $config['db_port'] ?? '5432';
+        $name = $config['db_name'] ?? null;
+        $user = $config['db_user'] ?? null;
+        $pass = $config['db_pass'] ?? null;
+
+        if (!$host || !$name || !$user) {
+            throw new RuntimeException('PostgreSQL config is incomplete in config/app.php');
+        }
+
+        $dsn = sprintf(
+            'pgsql:host=%s;port=%s;dbname=%s',
+            $host,
+            $port,
+            $name
+        );
+
+        return new PDO($dsn, $user, $pass, [
+            PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES => false,
+        ]);
+    }
+
+    private static function migrateSqlite(): void
     {
         self::$pdo->exec("
             CREATE TABLE IF NOT EXISTS portals (
