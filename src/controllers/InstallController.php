@@ -28,8 +28,8 @@ class InstallController
 
         $data = $_REQUEST;
         $memberId = trim((string)($data['member_id'] ?? ''));
-
         $domain = $data['DOMAIN'] ?? $data['domain'] ?? null;
+
         if (!$domain) {
             $referer = $_SERVER['HTTP_REFERER'] ?? '';
             $host = parse_url($referer, PHP_URL_HOST);
@@ -37,19 +37,20 @@ class InstallController
                 $domain = $host;
             }
         }
+
         if (!$domain) {
             $domain = 'unknown';
         }
 
         try {
             PortalService::upsertPortal([
-                'member_id'       => $memberId,
-                'access_token'    => $data['AUTH_ID'] ?? null,
-                'refresh_token'   => $data['REFRESH_ID'] ?? null,
+                'member_id' => $memberId,
+                'access_token' => $data['AUTH_ID'] ?? null,
+                'refresh_token' => $data['REFRESH_ID'] ?? null,
                 'server_endpoint' => $data['SERVER_ENDPOINT'] ?? null,
                 'application_token' => $data['APPLICATION_TOKEN'] ?? null,
-                'scope'           => $data['APPLICATION_SCOPE'] ?? null,
-                'domain'          => $domain,
+                'scope' => $data['APPLICATION_SCOPE'] ?? null,
+                'domain' => $domain,
             ]);
 
             $portal = PortalRepository::findByMemberId($memberId);
@@ -77,15 +78,14 @@ class InstallController
             Logger::log('INSTALL SUCCESS', [
                 'member_id' => $memberId,
                 'domain' => $domain,
+                'placement' => $data['PLACEMENT'] ?? null,
+                'placement_options' => $data['PLACEMENT_OPTIONS'] ?? null,
             ]);
 
-            // Если install открыт как интерфейс — уводим на settings
-            if (
-                isset($data['PLACEMENT']) ||
-                isset($data['APP_SID']) ||
-                isset($_SERVER['HTTP_REFERER'])
-            ) {
-                header('Location: /settings');
+            $redirect = $this->detectRedirect($data);
+
+            if ($redirect !== null) {
+                header('Location: ' . $redirect);
                 exit;
             }
 
@@ -100,6 +100,8 @@ class InstallController
                 'data_keys' => array_keys($data),
                 'member_id' => $memberId,
                 'domain' => $domain,
+                'placement' => $data['PLACEMENT'] ?? null,
+                'placement_options' => $data['PLACEMENT_OPTIONS'] ?? null,
             ]);
 
             header('Content-Type: text/plain; charset=utf-8');
@@ -107,5 +109,46 @@ class InstallController
             echo 'ERROR';
             exit;
         }
+    }
+
+    private function detectRedirect(array $data): ?string
+    {
+        $placement = (string)($data['PLACEMENT'] ?? '');
+        $options = $this->parsePlacementOptions($data['PLACEMENT_OPTIONS'] ?? null);
+
+        $tabId = $options['tab_id'] ?? $options['TAB_ID'] ?? null;
+        if ($tabId !== null) {
+            $tabId = (int)$tabId;
+        }
+
+        if ($placement === 'LEFT_MENU' && $tabId) {
+            return '/menu-item?tab_id=' . urlencode((string)$tabId);
+        }
+
+        if (str_ends_with($placement, '_DETAIL_TAB') && $tabId) {
+            return '/crm-tab?tab_id=' . urlencode((string)$tabId);
+        }
+
+        if ($placement !== '' || isset($data['APP_SID'])) {
+            return '/settings';
+        }
+
+        return null;
+    }
+
+    private function parsePlacementOptions($raw): array
+    {
+        if (is_array($raw)) {
+            return $raw;
+        }
+
+        if (is_string($raw) && $raw !== '') {
+            $decoded = json_decode($raw, true);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        }
+
+        return [];
     }
 }
