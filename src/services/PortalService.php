@@ -4,83 +4,95 @@ require_once __DIR__ . '/../db/Db.php';
 
 class PortalService
 {
-    /**
-     * Принимает payload как из install (AUTH_ID/REFRESH_ID/SERVER_ENDPOINT и т.п.),
-     * так и “нормализованный” (access_token/refresh_token/domain/client_endpoint).
-     */
     public static function upsertPortal(array $payload): void
     {
         $pdo = Db::pdo();
 
-        // 1) обязательное
         $memberId = (string)($payload['member_id'] ?? $payload['MEMBER_ID'] ?? '');
         if ($memberId === '') {
-            throw new RuntimeException("member_id missing");
+            throw new RuntimeException('member_id missing');
         }
 
-        // 2) токены (Bitrix в install шлёт AUTH_ID / REFRESH_ID)
-        $accessToken  = (string)($payload['access_token'] ?? $payload['AUTH_ID'] ?? '');
+        $accessToken = (string)($payload['access_token'] ?? $payload['AUTH_ID'] ?? '');
         $refreshToken = (string)($payload['refresh_token'] ?? $payload['REFRESH_ID'] ?? '');
 
-        // 3) endpoints
         $serverEndpoint = (string)($payload['server_endpoint'] ?? $payload['SERVER_ENDPOINT'] ?? '');
-
-        // client_endpoint Bitrix иногда присылает, иногда нет.
         $clientEndpoint = (string)($payload['client_endpoint'] ?? $payload['CLIENT_ENDPOINT'] ?? '');
-
-        // 4) domain
         $domain = (string)($payload['domain'] ?? $payload['DOMAIN'] ?? '');
 
-        // если домен не пришёл, попробуем вытащить из client_endpoint
         if ($domain === '' && $clientEndpoint !== '') {
             $host = parse_url($clientEndpoint, PHP_URL_HOST);
-            if (is_string($host)) $domain = $host;
+            if (is_string($host)) {
+                $domain = $host;
+            }
         }
 
-        // если client_endpoint не пришёл, но домен есть — соберём его сами
         if ($clientEndpoint === '' && $domain !== '') {
             $clientEndpoint = 'https://' . $domain . '/rest/';
         }
 
-        // Нормально сохранять даже если domain/client_endpoint пока пустые (потом допишем)
+        $existing = null;
+        $stmtCheck = $pdo->prepare("
+            SELECT access_token, refresh_token
+            FROM portals
+            WHERE member_id = :member_id
+            LIMIT 1
+        ");
+        $stmtCheck->execute([
+            ':member_id' => $memberId,
+        ]);
+        $existing = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
         $stmt = $pdo->prepare("
             INSERT INTO portals (
-                member_id, domain, access_token, refresh_token, application_token,
-                scope, user_id, client_endpoint, server_endpoint, updated_at
+                member_id,
+                domain,
+                access_token,
+                refresh_token,
+                application_token,
+                scope,
+                user_id,
+                client_endpoint,
+                server_endpoint,
+                created_at,
+                updated_at
             ) VALUES (
-                :member_id, :domain, :access_token, :refresh_token, :application_token,
-                :scope, :user_id, :client_endpoint, :server_endpoint, datetime('now')
+                :member_id,
+                :domain,
+                :access_token,
+                :refresh_token,
+                :application_token,
+                :scope,
+                :user_id,
+                :client_endpoint,
+                :server_endpoint,
+                NOW(),
+                NOW()
             )
-            ON CONFLICT(member_id) DO UPDATE SET
-                domain = COALESCE(excluded.domain, portals.domain),
-                access_token = COALESCE(excluded.access_token, portals.access_token),
-                refresh_token = COALESCE(excluded.refresh_token, portals.refresh_token),
-                application_token = COALESCE(excluded.application_token, portals.application_token),
-                scope = COALESCE(excluded.scope, portals.scope),
-                user_id = COALESCE(excluded.user_id, portals.user_id),
-                client_endpoint = COALESCE(excluded.client_endpoint, portals.client_endpoint),
-                server_endpoint = COALESCE(excluded.server_endpoint, portals.server_endpoint),
-                updated_at = datetime('now')
+            ON DUPLICATE KEY UPDATE
+                domain = COALESCE(VALUES(domain), domain),
+                access_token = COALESCE(VALUES(access_token), access_token),
+                refresh_token = COALESCE(VALUES(refresh_token), refresh_token),
+                application_token = COALESCE(VALUES(application_token), application_token),
+                scope = COALESCE(VALUES(scope), scope),
+                user_id = COALESCE(VALUES(user_id), user_id),
+                client_endpoint = COALESCE(VALUES(client_endpoint), client_endpoint),
+                server_endpoint = COALESCE(VALUES(server_endpoint), server_endpoint),
+                updated_at = NOW()
         ");
-        $existing = null;
-        $stmtCheck = $pdo->prepare("SELECT access_token, refresh_token FROM portals WHERE member_id = :m LIMIT 1");
-        $stmtCheck->execute([':m' => $memberId]);
-        $existing = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+
         $stmt->execute([
             ':member_id' => $memberId,
             ':domain' => $domain !== '' ? $domain : null,
-            ':access_token' => $accessToken !== '' 
-                ? $accessToken 
+            ':access_token' => $accessToken !== ''
+                ? $accessToken
                 : ($existing['access_token'] ?? null),
-
-            ':refresh_token' => $refreshToken !== '' 
-                ? $refreshToken 
+            ':refresh_token' => $refreshToken !== ''
+                ? $refreshToken
                 : ($existing['refresh_token'] ?? null),
-
             ':application_token' => $payload['application_token'] ?? $payload['APPLICATION_TOKEN'] ?? null,
             ':scope' => $payload['scope'] ?? $payload['SCOPE'] ?? null,
             ':user_id' => isset($payload['user_id']) ? (int)$payload['user_id'] : null,
-
             ':client_endpoint' => $clientEndpoint !== '' ? $clientEndpoint : null,
             ':server_endpoint' => $serverEndpoint !== '' ? $serverEndpoint : null,
         ]);
