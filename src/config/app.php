@@ -6,8 +6,8 @@ return [
     'db_host' => getenv('DB_HOST') ?: '127.0.0.1',
     'db_port' => getenv('DB_PORT') ?: '3306',
     'db_name' => getenv('DB_NAME') ?: 'b24_tabs',
-    'db_user' => getenv('DB_USER') ?: 'root',
-    'db_pass' => getenv('DB_PASS') ?: '',
+    'db_user' => getenv('DB_USER') ?: 'b24_tabs',
+    'db_pass' => getenv('DB_PASS') ?: 'b24_tabs',
 
     'log_path' => __DIR__ . '/../../storage/app.log',
 
