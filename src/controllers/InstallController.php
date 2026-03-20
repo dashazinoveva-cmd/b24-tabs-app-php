@@ -26,13 +26,10 @@ class InstallController
             exit;
         }
 
-        header('Content-Type: text/plain; charset=utf-8');
-
         $data = $_REQUEST;
-
         $memberId = trim((string)($data['member_id'] ?? ''));
-        $domain = $data['DOMAIN'] ?? $data['domain'] ?? null;
 
+        $domain = $data['DOMAIN'] ?? $data['domain'] ?? null;
         if (!$domain) {
             $referer = $_SERVER['HTTP_REFERER'] ?? '';
             $host = parse_url($referer, PHP_URL_HOST);
@@ -40,7 +37,6 @@ class InstallController
                 $domain = $host;
             }
         }
-
         if (!$domain) {
             $domain = 'unknown';
         }
@@ -51,6 +47,8 @@ class InstallController
                 'access_token'    => $data['AUTH_ID'] ?? null,
                 'refresh_token'   => $data['REFRESH_ID'] ?? null,
                 'server_endpoint' => $data['SERVER_ENDPOINT'] ?? null,
+                'application_token' => $data['APPLICATION_TOKEN'] ?? null,
+                'scope'           => $data['APPLICATION_SCOPE'] ?? null,
                 'domain'          => $domain,
             ]);
 
@@ -81,6 +79,17 @@ class InstallController
                 'domain' => $domain,
             ]);
 
+            // Если install открыт как интерфейс — уводим на settings
+            if (
+                isset($data['PLACEMENT']) ||
+                isset($data['APP_SID']) ||
+                isset($_SERVER['HTTP_REFERER'])
+            ) {
+                header('Location: /settings');
+                exit;
+            }
+
+            header('Content-Type: text/plain; charset=utf-8');
             http_response_code(200);
             echo 'OK';
             exit;
@@ -93,6 +102,7 @@ class InstallController
                 'domain' => $domain,
             ]);
 
+            header('Content-Type: text/plain; charset=utf-8');
             http_response_code(500);
             echo 'ERROR';
             exit;
