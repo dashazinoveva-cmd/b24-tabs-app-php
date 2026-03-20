@@ -10,6 +10,32 @@ require_once __DIR__ . '/../src/services/BitrixApi.php';
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $method = $_SERVER['REQUEST_METHOD'];
 
+function buildFrameAncestors(): string
+{
+    $allowed = [
+        "'self'",
+        "https://*.bitrix24.ru",
+        "https://*.bitrix24.com",
+        "https://*.bitrix24.site",
+    ];
+
+    $referer = $_SERVER['HTTP_REFERER'] ?? '';
+    if ($referer !== '') {
+        $scheme = parse_url($referer, PHP_URL_SCHEME);
+        $host = parse_url($referer, PHP_URL_HOST);
+        $port = parse_url($referer, PHP_URL_PORT);
+
+        if ($scheme && $host) {
+            $origin = $scheme . '://' . $host;
+            if ($port) {
+                $origin .= ':' . $port;
+            }
+            $allowed[] = $origin;
+        }
+    }
+
+    return implode(' ', array_unique($allowed));
+}
 
 // --------------------
 // HEALTHCHECK
@@ -166,9 +192,7 @@ if ($uri === '/crm-tab' || $uri === '/crm-tab/') {
 
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
-
-    // чтобы Bitrix мог встраивать твою страницу в iframe
-    header("Content-Security-Policy: frame-ancestors 'self' https://*.bitrix24.ru https://*.bitrix24.com https://*.bitrix24.site");
+    header("Content-Security-Policy: frame-ancestors " . buildFrameAncestors());
 
     $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
@@ -286,7 +310,7 @@ HTML;
 
     http_response_code(200);
     header('Content-Type: text/html; charset=utf-8');
-    header("Content-Security-Policy: frame-ancestors 'self' https://*.bitrix24.ru https://*.bitrix24.com https://*.bitrix24.site");
+    header("Content-Security-Policy: frame-ancestors " . buildFrameAncestors());
 
     $safeLink = htmlspecialchars($link, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
 
