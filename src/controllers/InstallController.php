@@ -63,11 +63,17 @@ class InstallController
             $appUrl = rtrim((string)($config['app_url'] ?? ''), '/');
 
             if ($appUrl !== '') {
-                BitrixApi::call($portal, 'placement.bind', [
-                    'PLACEMENT' => 'LEFT_MENU',
-                    'HANDLER'   => $appUrl . '/settings',
-                    'TITLE'     => 'Настройки табов',
-                ]);
+                try {
+                    BitrixApi::call($portal, 'placement.bind', [
+                        'PLACEMENT' => 'LEFT_MENU',
+                        'HANDLER'   => $appUrl . '/settings',
+                        'TITLE'     => 'Настройки табов',
+                    ]);
+                } catch (Throwable $e) {
+                    if (stripos($e->getMessage(), 'Handler already binded') === false) {
+                        throw $e;
+                    }
+                }
             }
 
             Logger::log('INSTALL SUCCESS', [
