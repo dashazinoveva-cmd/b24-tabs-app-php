@@ -24,8 +24,8 @@ final class Db
             return self::$pdo;
         }
 
-        if ($driver === 'pgsql') {
-            self::$pdo = self::connectPostgres($config);
+        if ($driver === 'mysql') {
+            self::$pdo = self::connectMysql($config);
             return self::$pdo;
         }
 
@@ -55,20 +55,20 @@ final class Db
         return $pdo;
     }
 
-    private static function connectPostgres(array $config): PDO
+    private static function connectMysql(array $config): PDO
     {
         $host = $config['db_host'] ?? null;
-        $port = $config['db_port'] ?? '5432';
+        $port = $config['db_port'] ?? '3306';
         $name = $config['db_name'] ?? null;
         $user = $config['db_user'] ?? null;
         $pass = $config['db_pass'] ?? null;
 
         if (!$host || !$name || !$user) {
-            throw new RuntimeException('PostgreSQL config is incomplete in config/app.php');
+            throw new RuntimeException('MySQL config is incomplete in config/app.php');
         }
 
         $dsn = sprintf(
-            'pgsql:host=%s;port=%s;dbname=%s',
+            'mysql:host=%s;port=%s;dbname=%s;charset=utf8mb4',
             $host,
             $port,
             $name
